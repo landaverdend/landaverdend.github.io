@@ -7,8 +7,20 @@ canvas.oncontextmenu = function (e) {
     e.preventDefault();
 };
 
+const TILEHEIGHT = 787;
+const TILEWIDTH = 790;
+
 //BELOW ARE ALL GAME RELATED INSTANCE VALUES
-var spriteTable, board, scoreboard, rulesViewer;
+var spriteTable, board, scoreboard, rulesViewer, clock, dialogueBox;
+
+//current holds the board position of the 'current' tile.
+var current = [0, 0];
+//mouseMove is a boolean that tells whether client is using keys or mouse.
+var mouseMove, roundEnd, roundAdvance;
+
+
+//is there an animation happening right now?
+var animating = false;
 
 //dimension of each tile is a global variable.
 var dimension = calculateDim();
@@ -17,7 +29,6 @@ var mouseX = 0;
 var mouseY = 0;
 const delta = 8;
 const SIZE = 6;
-
 
 window.addEventListener("mousedown", onClick, false);
 window.addEventListener('resize', resizeCanvas, false);
@@ -28,6 +39,7 @@ function updateXY(event)
 {
 	mouseX = event.clientX;
 	mouseY = event.clientY;
+	mouseMove = true;
 }
 
 function calculateDim()
@@ -35,13 +47,26 @@ function calculateDim()
 	return (window.innerHeight + (window.innerWidth * 1.2)) / 25;
 }
 
-
 //EACH TIME A TILE IS CLICKED, THIS METHOD IS CALLED.
 function onClick(event)
 {
 	console.log("Mouse x: " + event.clientX);
 	console.log("Mouse y: " + event.clientY);
-	1
+	if(roundEnd)
+	{
+		dialogueBox.clicks++;
+		dialogueBox.setString('Dropping to level 1');
+		board.flipAll();
+		return;
+	}
+	
+	if(roundAdvance)
+	{
+		dialogueBox.clicks++;
+		dialogueBox.setString("You've found all hidden cards!");
+		board.flipAll();
+	}
+	
 	//check all tile coordinates, add dimension size to each point 
 	for(let i = 0; i < 5; i++)
 	{
@@ -58,78 +83,188 @@ function onClick(event)
 				if(event.button == 0) //left click.
 				{
 					let curTile = board.tileSet[i][j];
-					
-					switch(curTile.value)
-					{
-						case 'tapped1':
-							break;
-						case 'tapped2':
-							if(!curTile.clicked)
-							{
-								scoreboard.score *= 2;
-								scoreboard.flippedCards++;
-							}
-							break;
-						case 'tapped3':
-							if(!curTile.clicked)
-							{
-								scoreboard.score *= 3;
-								scoreboard.flippedCards++;
-							}
-							break;
-						case 'tappedLose':
-							endRound();
-							break;
-					}
-					curTile.clicked = true;
+					flipTile(curTile);
 				}
 				else if(event.button == 2) //right click.
 				{
 					let curTile = board.tileSet[i][j];
 					curTile.markedDead = !curTile.markedDead; //just flip the signs.
-					
 				}
-				//update();
 				break;
 			}
 		}
 	}
 }
-
+//KEY LISTENERS FOR KEYBOARD.
 function keyDown(event)
 {
+	if(roundEnd)
+	{
+		event.preventDefault();
+		dialogueBox.clicks++;
+		dialogueBox.setString('Dropping to level 1');
+		board.flipAll();
+		return;
+	}
+	
+	if(roundAdvance)
+	{
+		event.preventDefault();
+		dialogueBox.clicks++;
+		dialogueBox.setString("You've found all hidden cards!");
+		board.flipAll();
+	}
+	
+	
 	//all three event codes.
 	if(event.code == 'Digit1' || event.code == 'Digit2'
-		|| event.code == 'Digit3')
+	   || event.code == 'Digit3' || event.code == 'KeyX')
 	{
-		for(let i = 0; i < 5; i++)
+		//if using the mouse to move.
+		if(mouseMove)
 		{
-			for(let j = 0; j < 5; j++)
+			for(let i = 0; i < 5; i++)
 			{
-				let currentX = board.tileSet[i][j].point.x + 10;
-				let currentY = board.tileSet[i][j].point.y + 10;
-				
-				let curTile = board.tileSet[i][j];
-				
-				if(isValid(currentX, currentY, mouseX, mouseY))
+				for(let j = 0; j < 5; j++)
 				{
-					console.log('working');
-					switch(event.code)
+					let currentX = board.tileSet[i][j].point.x + 10;
+					let currentY = board.tileSet[i][j].point.y + 10;
+				
+					let curTile = board.tileSet[i][j];
+				
+					if(isValid(currentX, currentY, mouseX, mouseY))
 					{
-						case 'Digit1':
-							curTile.markedOne = !curTile.markedOne;
-							break;
-						case 'Digit2':
-							curTile.markedTwo = !curTile.markedTwo;
-							break;
-						case 'Digit3':
-							curTile.markedThree = !curTile.markedThree;
-							break;
+						markTile(event.code, curTile);
 					}
-					
 				}
 			}
 		}
+		else if(!mouseMove) //if using arrowKeys
+		{
+			let curTile = board.tileSet[current[0]][current[1]];
+			markTile(event.code, curTile);
+		}
+	}
+	else if (event.code == 'ArrowRight' || event.code == 'ArrowLeft'
+			 || event.code == 'ArrowDown' || event.code == 'ArrowUp')
+	{
+		//stop arrows from moving task bar.
+		event.preventDefault();
+		let i = current[0];
+		let j = current[1];
+		
+		mouseMove = false;
+		
+		board.tileSet[i][j].current = false;
+		switch(event.code)
+		{
+			case 'ArrowRight':
+				if (j + 1 < 5) 
+				{
+					board.tileSet[i][j + 1].current = true;
+					current[1] = j + 1;
+				}
+				break;
+			case 'ArrowLeft':
+				if (j - 1 >= 0)
+				{
+					board.tileSet[i][j - 1].current = true;
+					current[1] = j - 1;
+				}
+				break;
+			case 'ArrowUp':
+				if (i - 1 >= 0)
+				{
+					board.tileSet[i - 1][j].current = true;
+					current[0] = i - 1;
+				}
+				break;
+			case 'ArrowDown':
+				if (i + 1 <= 4)
+				{
+					board.tileSet[i + 1][j].current = true;
+					current[0] = i + 1;
+				}
+				break;
+		}
+			
+	}
+	else if(event.code == 'Space')
+	{
+		event.preventDefault();
+		let curTile = board.tileSet[current[0]][current[1]];
+		flipTile(curTile);
+	}
+
+}
+
+function markTile(code, curTile)
+{
+	switch(code)
+	{
+		case 'Digit1':
+			curTile.markedOne = !curTile.markedOne;
+			break;
+		case 'Digit2':
+			curTile.markedTwo = !curTile.markedTwo;
+			break;
+		case 'Digit3':
+			curTile.markedThree = !curTile.markedThree;
+			break;
+		case 'KeyX':
+			curTile.markedDead = !curTile.markedDead;
+			break;
+	}
+}
+
+function flipTile(curTile)
+{
+	if(curTile.clicked)
+		return;	
+	
+	
+	//disable below line if you want to be able to do multiple flips
+	if(animating) return;
+	
+	switch(curTile.value)
+	{
+		case 'tapped1':
+			break;
+		case 'tapped2':
+			if(!curTile.clicked)
+			{
+				scoreboard.score *= 2;
+				scoreboard.flippedCards++;
+				scoreboard.scoreThisRound *= 2;
+				dialogueBox.setString('x2! Received ' + scoreboard.score + ' coins!');
+				dialogueBox.enableTimed();
+			}
+			break;
+		case 'tapped3':
+			if(!curTile.clicked)
+			{
+				scoreboard.score *= 3;
+				scoreboard.scoreThisRound *= 3;
+				scoreboard.flippedCards++;
+				dialogueBox.setString('x3! Received ' + scoreboard.score + ' coins!');
+				dialogueBox.enableTimed();
+			}
+			break;		
+		case 'tappedLose':
+			dialogueBox.enable();
+			dialogueBox.setString('Oh no! You get 0 coins!');
+			roundEnd = true;
+			break;
+	}
+	
+	curTile.clicked = true;
+	curTile.startAnimate = true;
+	
+	if(scoreboard.scoreThisRound == scoreboard.maxRoundScore)
+	{
+		dialogueBox.enable();
+		dialogueBox.setString('Game Clear!');
+		roundAdvance = true;
 	}
 	
 }
@@ -153,6 +288,7 @@ function resizeCanvas()
 	rulesViewer.updateViewer();
 	scoreboard.updateViewer();
 	board.updateBoard();
+	dialogueBox.updateBox();
 }
 //HOLDER CLASS FOR X AND Y COORDINATES OF PAGE ELEMENTS
 class Point
@@ -177,47 +313,128 @@ class Tile
 			this.img = img;
 			this.point = point;
 			
-			//BELOW THIS ARE ONLY TILE-SPECIFIC FIELDS.
-			//OUTSIDE: keep track of total losses on each row.
+			// BELOW THIS ARE ONLY TILE-SPECIFIC FIELDS.
+			// OUTSIDE: keep track of total losses on each row.
 			this.lossTiles = lossTiles;
-			//OUTSIDE: keep track of total point count in row.
+			// OUTSIDE: keep track of total point count in row.
 			this.totalPoints  = 0;
-			//ALL CLICKABLE TILES: keep track of whether or not this tile was clicked.
+			// ALL CLICKABLE TILES: keep track of whether or not this tile was clicked.
 			this.clicked = false;
-			//OUTSIDE TILES: keep track of whether or not this tile is an outside one.
+			
+			// OUTSIDE TILES: keep track of whether or not this tile is an outside one.
 			this.outside = false;
-			//MEMO USAGE BELOW:
+			
+			// MEMO USAGE BELOW:
 			this.markedOne = false;
 			this.markedTwo = false;
 			this.markedThree = false;
 			this.markedDead = false;
 			
+			// CURRENT TILE
+			this.current = false;
 			
+			// ANIMATE STUFF
+			this.startAnimate = false;
+			this.flipBackwards = false;
+			this.alreadyAnimated = false;
+			this.kaboomDisable = false;
+			this.loopIndex = 0; //used to keep track of current frame.
+			this.maxFrame = 10;
 		}
 		
-		paint(context)
+		paint(context, i, j)
 		{
 			let curX = this.point.x;
 			let curY = this.point.y;
+			
+			//animate stuff.
+			if(this.startAnimate)
+			{
+				animating = true;
+				
+				clock.countFrames();
+				if (clock.frameCounter > clock.fps * 1.05) //this right here decides duration
+														//of the animation. Higher = longer animation
+				{
+					this.loopIndex++;
+					clock.frameCounter = 0;	
+				}
+			}
 			
 			//update dimension value at draw time.
 			dimension = calculateDim();
 			
 			//if this tile is an outside one
-			if(this.outside)
+			if (this.outside)
 			{
 				this.drawOutside(context, curX, curY);
 			}
-			//if tile is clickable but not yet clicked.
-		    else if(!this.clicked)
+			// if tile is clickable but not yet clicked.
+		    else if (!this.clicked)
 			{
 				this.drawUnclicked(context, curX, curY);
 			}
+			
+		    if ( (this.startAnimate && !this.alreadyAnimated) || this.flipBackwards) //animation time but not already animated.
+			{
+				if(this.loopIndex == this.maxFrame) //base case: end animation.
+				{
+					context.drawImage(spriteTable[this.value], curX, curY, dimension, dimension);
+					this.startAnimate = false;
+					this.alreadyAnimated = true;
+					this.loopIndex = 0;
+					animating = false; //reset global back to false.
+					
+				}
+				else //regular animation.
+				{
+					if (!this.kaboomDisable) //if kabooms are enabled
+					{
+						this.animateKaboom(context, curX, curY);
+					}
+					else if(!this.flipBackwards)
+					{
+						context.drawImage(spriteTable[this.value], curX, curY, dimension, dimension);
+					}
+					else if(this.flipBackwards)
+					{
+						this.animateBackwards(context, curX, curY);
+					}
+					
+					if(this.flipBackwards)
+					{
+						this.animateBackwards(context, curX, curY);
+					}
+					else
+					{
+						this.animateFlip(context, curX, curY);
+					}
+				}
+			}
 			//tile is clickable and already clicked.
-			else
+			else if (this.clicked || this.kaboomDisable)
 			{
 				context.drawImage(spriteTable[this.value], curX, curY, dimension, dimension);
-			}	
+			}
+			
+			//this guy last because he goes on top of other tiles.
+			if (this.checkHover(i, j))
+			{
+				this.drawHover(context, curX, curY);
+				if(this.startAnimate && !this.kaboomDisable)
+					this.animateKaboom(context, curX, curY, i, j);
+			}
+
+		}
+		
+		drawHover(context, curX, curY)
+		{
+			context.drawImage(spriteTable['tileHover'], curX, curY, dimension, dimension);
+		}
+		
+		checkHover(i, j)
+		{
+			return i == current[0] && j == current[1] && !mouseMove;
 		}
 		
 		drawOutside(context, curX, curY)
@@ -254,6 +471,8 @@ class Tile
 		drawUnclicked(context, curX, curY)
 		{
 			context.drawImage(this.img, curX, curY, dimension, dimension);
+			//context.drawImage(spriteTable['tile1'], 0, 0, TILEWIDTH, TILEHEIGHT, curX, curY, dimension, dimension);
+			
 			let smallDim = dimension * .20;
 			let smallPoint = dimension * .125;
 			
@@ -271,8 +490,123 @@ class Tile
 			
 		}
 		
+		drawClicked(context, curX, curY)
+		{
+			context.drawImage(spriteTable[this.value], curX, curY, dimension, dimension);
+		}
+		
+		animateFlip(context, curX, curY)
+		{	
+			//changing the values here decides how long to draw each image for.
+			if (this.loopIndex == 0)
+			{
+				context.drawImage(this.img, curX, curY, dimension, dimension);
+			}
+			else if (this.loopIndex == 1)
+			{
+				context.drawImage(spriteTable['flipAnim1'], curX, curY, dimension, dimension);
+			}
+			else if (this.loopIndex == 2)
+			{
+				context.drawImage(spriteTable['flipAnim2'], curX, curY, dimension, dimension);
+			}
+			else if (this.loopIndex == 3)
+			{
+				context.drawImage(spriteTable['flipAnim3'], curX, curY, dimension, dimension);
+			}
+		}
+		
+		animateKaboom(context, curX, curY, i, j)
+		{
+			//kaboom dimensions are bigger than regular tile.
+			let kDim = dimension * 1.5;
+			let kX = curX - (dimension * .23);
+			let kY = curY - (dimension * .23);
+			let bool = this.checkHover(i, j);
+			
+			if (this.loopIndex >= 4 && this.loopIndex <= 5)
+			{
+				this.drawClicked(context, curX, curY);
+				if(bool) this.drawHover(context, curX, curY);
+			}
+			else if (this.loopIndex == 6 || this.loopIndex == 7)
+			{
+				this.drawClicked(context, curX, curY);
+				if(bool) this.drawHover(context, curX, curY);
+				context.drawImage(spriteTable['kaboom1'], kX, kY, kDim, kDim);
+			}
+			else if (this.loopIndex == 8 || this.loopIndex == 9)
+			{
+				this.drawClicked(context, curX, curY);
+				if(bool) this.drawHover(context, curX, curY);
+				context.drawImage(spriteTable['kaboom2'], kX, kY, kDim, kDim);
+			}
+			else if (this.loopIndex == 10)
+			{
+				this.drawClicked(context, curX, curY);
+				if(bool) this.drawHover(context, curX, curY);
+				context.drawImage(spriteTable['kaboom3'], kX, kY, kDim, kDim);
+			}
+		}
+		
+		animateBackwards(context, curX, curY)
+		{
+			switch(this.loopIndex)
+			{
+				case 0:
+					this.drawClicked(context, curX, curY);
+					break;
+				case 1:
+					context.drawImage(spriteTable['flipAnim3'], curX, curY, dimension, dimension);
+					break;
+				case 2:
+					context.drawImage(spriteTable['flipAnim2'], curX, curY, dimension, dimension);
+					break;
+				case 3:
+					context.drawImage(spriteTable['flipAnim1'], curX, curY, dimension, dimension);
+					this.value =  'default';
+					//this.flipBackwards = false;
+					break;
+			}
+		}
 	}
 
+//KEEPS TRACK OF FRAME DATA
+class Clock
+{
+	constructor()
+	{
+		this.secondsPassed = 0;
+		this.fps = 0;
+		this.oldTimeStamp = 0;
+		this.frameCounter = 0;
+	}
+	
+	updateFields(timeStamp)
+	{
+		//console.log('old stamp ' + this.oldTimeStamp);
+		this.secondsPassed = (timeStamp - this.oldTimeStamp) / 1000;
+		this.oldTimeStamp = timeStamp;
+		
+		this.fps = Math.round( 1 / this.secondsPassed);
+	}
+	
+	
+	//used to track how many frames go by for animations.
+	countFrames()
+	{
+		this.frameCounter += this.fps;
+	}
+	
+	reset()
+	{
+		this.secondsPassed = 0;
+		this.fps = 0;
+		this.oldTimeStamp = 0;
+		this.frameCounter = 0;
+	}
+	
+}
 
 //BOARD HANDLES: TILE PLACEMENT, TILE TYPE, DIFFICULTY/SPOT GENERATION.
 class Board
@@ -297,7 +631,7 @@ class Board
 				let t = this.tileSet[i][j];
 				if( (i != SIZE - 1) || (j != SIZE - 1))
 				{
-					t.paint(context);
+					t.paint(context, i, j);
 				}
 			}
 		}
@@ -349,6 +683,48 @@ class Board
 			yCounter += yGap;
 		}
 	}
+	
+	//Dude I have no clue why it doesn't just work the normal way but for now he works.
+	flipAll()
+	{
+		
+		for (let i = 0; i <= 4; i++)
+		{	
+			this.flipRow(i);
+		}
+	}
+	
+	flipRow(col)
+	{
+		for (let i = 0; i <= 4; i++)
+		{
+			this.tileSet[col][i].kaboomDisable = true;
+			this.tileSet[col][i].clicked = true;
+			this.tileSet[col][i].startAnimate = true;
+			//console.log('flipped ' + i + ' ' + col);
+		}
+	}
+	
+	flipBackwards()
+	{
+		console.log('flipping backwards');
+		for(let i = 0; i <= 4; i++)
+		{
+			for(let j = 0; j <= 4; j++)
+			{
+				this.tileSet[j][i].kaboomDisable = true;
+				this.tileSet[j][i].clicked = false;
+				this.tileSet[j][i].startAnimate = true;
+				this.tileSet[j][i].flipBackwards = true;
+				animating = true;
+			}							
+		}
+		
+		if(roundEnd) endRound();
+		if(roundAdvance) advanceRound();
+		
+		animating = false;
+	}
 }
 
 //SCOREBOARD HANDLES: CURRENT SCORE, CURRENT LEVEL
@@ -363,16 +739,19 @@ class Scoreboard
 		this.point = new Point(window.innerWidth / 70, window.innerHeight / 70);
 		
 		this.width = window.innerWidth / 2.65;
-		//console.log('SCOREBOARD WIDTH: ' + (this.width - this.point.x));
 		this.height = window.innerHeight / 2;
-		//console.log('SCOREBOARD HEIGHT: ' + (this.height - this.point.y));
 		this.flippedCards = 0;
-		//this.point = new Point(window.innerWidth /4, window.innerHeight / 2) 
+		
+		//tracker for 
+		this.maxRoundScore = 0;
+		this.scoreThisRound = 1;
+		
 	}
 	
 	paint(context)
 	{
 		context.drawImage(this.viewer, this.point.x, this.point.y, this.width, this.height);
+		
 		//calculate point/dimension for 'your coins:'
 		let coinsWidth = (this.width - this.point.x) * .5;
 		let coinsHeight = (this.height - this.point.y) * .3;
@@ -406,8 +785,7 @@ class Scoreboard
 		
 		
 		for(let i = 0; i <= 4; i++)
-		{
-			
+		{	
 			let sprite = "score" + temp.charAt(i);
 			context.drawImage(spriteTable[sprite], scoreX + (i * this.width / 6.5), scoreY, scoreWidth, scoreHeight);
 		}
@@ -415,12 +793,13 @@ class Scoreboard
 	
 	drawLevel(context)
 	{
-		let levelWidth = (this.width - this.point.x) * .5;
-		let levelHeight = (this.height - this.point.y) * .3;
-		let levelX = this.point.x + (this.width * .275);
-		let levelY = this.point.y + (this.height * .7);
+		let levelWidth = (this.width - this.point.x) * .2;
+		let levelHeight = (this.height - this.point.y) * .1;
+		let levelX = this.point.x + (this.width * .4);
+		let levelY = this.point.y + (this.height * .8);
 		
-		context.drawImage(spriteTable['levelCount'], levelX, levelY, levelWidth, levelHeight);
+		
+		context.drawImage(spriteTable['levelCount' + this.level], levelX, levelY, levelWidth, levelHeight);
 	}
 	
 }
@@ -441,23 +820,172 @@ class TutorialViewer
 	
 	updateViewer()
 	{
-		this.point = new Point(window.innerWidth * .05, window.innerHeight * .55);
+		this.point = new Point(window.innerWidth * .045, window.innerHeight * .55);
 		this.height = window.innerHeight * .32;
 		this.width = window.innerWidth * .32;
 	}
 	
 }
 
+class DialogueBox
+{
+	constructor()
+	{
+		this.viewToggle = false; //toggle for whether or not box is viewable
+		this.timedWindow = false;
+		
+		this.background = spriteTable['dialogueBox'];
+		
+		this.timer = new Clock();
+				
+		this.boxHeight = window.innerHeight * .15;
+		this.boxWidth = window.innerWidth * .6;
+		this.boxX = window.innerWidth * .2;
+		this.boxY = window.innerHeight * .8;
+		
+		
+		this.textX = window.innerWidth * .25;
+		this.textY = window.innerHeight * .9;
+		
+		this.fontSize = this.boxHeight * .075 + this.boxWidth * .075;
+		
+		this.clicks = 0; //keep track of total clicks after box is open.
+		this.string = 'Empty.';
+	}
+	
+	paint(context)
+	{
+		
+		if(this.viewToggle)
+		{
+			//save the current context values before altering them.
+			context.save();
+			
+			if(roundEnd || roundAdvance) //end of round
+			{
+				if(this.clicks >= 2) //advance round from here!
+				{
+					this.viewToggle = false;
+					board.flipBackwards();	
+					
+					if(!animating)
+					{
+						this.clicks = 0;
+						this.viewToggle = false;
+						//roundEnd = false;
+						//roundAdvance = false;
+					}
+				}
+				
+				context.fillStyle = 'rgb(0, 0, 0, 0.5)';
+				context.fillRect(0, 0, canvas.width, canvas.height);
+				this.drawBox(context);
+			}
+			else if (this.timedWindow)//if window is timed.
+			{
+				this.timer.countFrames();
+				
+				if (this.timer.frameCounter < this.timer.fps * 100)
+				{
+					this.drawBox(context);
+				}
+				else //stops drawing the box.
+				{
+					this.viewToggle = false;
+					this.timedWindow = false;
+					this.timer.reset();
+				}
+			}
+			
+			context.restore(); //reset the context values to previous stuff.
+		}
+	}
+	
+	//draws the dialogue box.
+	drawBox(context)
+	{
+		context.drawImage(this.background, this.boxX, this.boxY, this.boxWidth, this.boxHeight);
+		context.font = this.fontSize +'px DSFONT';
+		context.fillStyle = '#4d4d55';
+		context.fillText(this.string, this.textX, this.textY);
+	}
+	
+	setString(string)
+	{
+		this.string = string;
+	}
+	
+	updateBox()
+	{
+		this.boxHeight = window.innerHeight * .15;
+		this.boxWidth = window.innerWidth * .6;
+		this.boxX = window.innerWidth * .2;
+		this.boxY = window.innerHeight * .8;
+		//text stuff below here.
+		this.textX = window.innerWidth * .25;
+		this.textY = window.innerHeight * .9;
+		
+		if(this.fontSize > this.boxHeight)
+		{
+			this.fontSize = this.boxHeight * .5;
+		}
+		else if (this.fontSize > this.boxWidth)
+		{
+			this.fontSize = this.boxWidth * .05; 
+		}
+		else
+		{
+			this.fontSize = this.boxHeight * .075 + this.boxWidth * .075;
+		}
+	}
+	
+	enable()
+	{
+		this.viewToggle = true;
+	}
+	
+	enableTimed()
+	{
+		this.viewToggle = true;
+		this.timedWindow = true;
+		this.timer.reset();
+	}
+	
+}
+
+function advanceRound()
+{		
+	console.log('advancing round...');
+	scoreboard.scoreThisRound = 1;
+	scoreboard.flippedCards = 0;
+	roundAdvance = false;
+	
+	if(scoreboard.level != 8)
+	{
+		scoreboard.level++;
+		dialogueBox.enableTimed();
+		dialogueBox.setString('Advancing  to level ' + scoreboard.level);
+	}
+	else
+	{
+		dialogueBox.enable();
+		dialogueBox.setString('Congrats! You won!');
+	}
+	
+	board.loadBoard();
+}
+
 //END CURRENT ROUND
 function endRound()
-{
-	//alert("ROUND OVER!");
-	//scoreboard.score = 0;
+{	
+	scoreboard.score = 1;
 	//uncomment this line when more difficulties are added
-	//scoreboard.level = scoreboard.flippedCards;
-	
-	//scoreboard.flippedCards = 0;
-	//board.loadBoard();
+	scoreboard.scoreThisRound = 1;
+
+	scoreboard.level = 1;
+	scoreboard.flippedCards = 0;
+	roundEnd = false;
+	board.loadBoard();
 }
 
 //INITIALIZE OUTSIDE TILE VALUES
@@ -520,41 +1048,124 @@ function getRandomRange(num)
 {
 	return Math.floor(Math.random() * num);
 }
+//PUTS VOLTORBS ON BOARD
+function placeVoltorbs(level)
+{
+	let count = 0;
+	while (count < level)
+	{
+		let randX = getRandomRange(5);
+		let randY = getRandomRange(5);
+		if(board.tileSet[randX][randY].value == 'tapped1') //if default 1 value
+		{		
+			board.tileSet[randX][randY].value = 'tappedLose';
+			count++;
+		}
+	}
+}
 
 //takes the current board field and generates it with all the values.
 function generateSpots(level)
 {
 	var counts;
-	
+	var possiblePlacements;
+	var temp;
+	//REFERENCE FOR DIFFICULTIES: https://bulbapedia.bulbagarden.net/wiki/Voltorb_Flip
 	switch(scoreboard.level)
 	{
 		case 1:
-			//generate locations of LOSE tiles, only 6!
-			var count = 0;
-			while (count < 6)
-			{
-				let randX = getRandomRange(5);
-				let randY = getRandomRange(5);
-				if(board.tileSet[randX][randY].value == 'tapped1') //if default 1 value
-				{		
-					board.tileSet[randX][randY].value = 'tappedLose';
-					count++;
-				}
-			}
-			var coinRange = [24, 27, 32, 36, 48]
+			placeVoltorbs(6);
+			//var coinRange = [24, 27, 32, 36, 48]
 			//possiblePlacements[0] = 2's, [1] = 3's
-			var possiblePlacements = [[3, 1],
-									  [0, 3],
-									  [5, 0],
-									  [2, 2],
-									  [4, 1]];
+			possiblePlacements = [[3, 1],
+								  [0, 3],
+								  [5, 0],
+								  [2, 2],
+								  [4, 1]];
 		    counts = possiblePlacements[getRandomRange(5)];
 			break;
-	
+		case 2:
+			placeVoltorbs(7);
+			possiblePlacements = [[1, 3],
+								  [6, 0],
+								  [3, 2],
+								  [0, 4],
+								  [5, 1]];
+			counts = possiblePlacements[getRandomRange(5)];
+			break;
+		case 3:
+			placeVoltorbs(8);
+			possiblePlacements = [[2, 3],
+								  [7, 0],
+								  [4, 2],
+								  [1, 4],
+								  [6, 1]];
+			counts = possiblePlacements[getRandomRange(5)];
+			break;
+		case 4: //for level 4, there can be two amounts of voltorbs placed: 8 and 10.
+			temp = getRandomRange(5);
+			if(temp <= 1) //two options for 8 voltorbs.
+			{
+				placeVoltorbs(8);
+				possiblePlacements = [ [3,3], [0,5] ];
+				counts = possiblePlacements[getRandomRange(2)];
+			}
+			else //three options for 10 voltorbs.
+			{
+				placeVoltorbs(10);
+				possiblePlacements = [ [8, 0], [5, 2], [2, 4] ];
+				counts = possiblePlacements[getRandomRange(3)];
+			}
+			break;
+		case 5: //five is all ten voltorbs.
+			placeVoltorbs(10);
+			possiblePlacements = [[7, 1],
+								  [4, 3],
+								  [1, 5],
+								  [9, 0],
+								  [6, 2]];
+			counts = possiblePlacements[getRandomRange(5)];
+			break;
+		case 6:
+			placeVoltorbs(10);
+			possiblePlacements = [[3, 4],
+								  [0, 6],
+								  [8, 1],
+								  [5, 3],
+								  [2, 5]];
+			counts = possiblePlacements[getRandomRange(5)];
+			break;
+		case 7: //level 7 is just like level 4
+			temp = getRandomRange(5);
+			if(temp <= 1)
+			{
+				placeVoltorbs(13);
+				possiblePlacements = [ [1, 6], [9, 1] ];
+				counts = possiblePlacements[getRandomRange(2)];
+			}
+			else
+			{
+				placeVoltorbs(10);
+				possiblePlacements = [ [7, 2], [4, 4], [6,3] ];
+				counts = possiblePlacements[getRandomRange(3)];
+			}
+			break;
+		case 8:
+			placeVoltorbs(10);
+			possiblePlacements = [[0, 7],
+								  [8, 2],
+								  [5, 4],
+								  [2, 6],
+								  [7, 3]];
+			counts = possiblePlacements[getRandomRange(5)];
+			break;	
 	}
-	
 	loadPointTiles(2, counts[0]);
 	loadPointTiles(3, counts[1]);
+	//set the bar for next score to get.
+	scoreboard.maxRoundScore = Math.pow(2, counts[0]) * Math.pow(3, counts[1]);
+	
+	console.log('Score to get to win: ' + scoreboard.maxRoundScore);
 	initOutsideTiles();
 }
 
@@ -570,17 +1181,35 @@ function loadSpriteTable()
 	spriteTable['rules'] = new Image();
 	spriteTable['rules'].src = 'rules.png';
 	
+
+	
 	spriteTable['yourCoins'] = new Image();
 	spriteTable['yourCoins'].src = 'yourCoins.png';
 	
-	spriteTable['levelCount'] = new Image();
-	spriteTable['levelCount'].src = 'levelCount.png';
+	
 	
 	spriteTable['voltorb'] = new Image();
 	spriteTable['voltorb'].src = 'voltorb.png';
 	
+	spriteTable['tileHover'] = new Image();
+	spriteTable['tileHover'].src = 'tileHover.png';
+	
 	spriteTable['tappedLose'] = new Image();
 	spriteTable['tappedLose'].src = 'tappedLose.png';
+	
+	
+	spriteTable['loseText'] = new Image();
+	spriteTable['loseText'].src = 'loseText.png';
+	
+	
+	spriteTable['dialogueBox'] = new Image();
+	spriteTable['dialogueBox'].src = 'dialogueBox.png';
+	
+	spriteTable['gameOverText'] = new Image();
+	spriteTable['gameOverText'].src = 'gameOverText.png';
+	
+
+	
 	//just load through a for loop
 	for(let i = 0; i <= 9; i++)
 	{
@@ -597,15 +1226,25 @@ function loadSpriteTable()
 		spriteTable['dead'].src = 'dead.png';
 		if (i != 0 && i < 4)
 		{
-			let tapped = 'tapped';
-			tapped = tapped + i;
+			let temp = 'tapped';
+			temp = temp + i;
 		
-			spriteTable[tapped] = new Image();
-			spriteTable[tapped].src = tapped.concat('.png');
+			spriteTable[temp] = new Image();
+			spriteTable[temp].src = temp.concat('.png');
 			
-			tapped = 'memo' + i;
-			spriteTable[tapped] = new Image();
-			spriteTable[tapped].src = tapped.concat('.png');
+			temp = 'memo' + i;
+			spriteTable[temp] = new Image();
+			spriteTable[temp].src = temp.concat('.png');
+			
+			temp = 'kaboom' + i;
+			spriteTable[temp] = new Image();
+			spriteTable[temp].src = temp.concat('.png');
+			
+			
+			temp = 'flipAnim' + i;
+			spriteTable[temp] = new Image();
+			spriteTable[temp].src = temp.concat('.png');
+			
 		}
 		
 		//outside tiles 1-5
@@ -615,11 +1254,19 @@ function loadSpriteTable()
 			spriteTable[out] = new Image();
 			spriteTable[out].src = out.concat('.png');
 		}
+		
+		if (i <= 8 && i > 0)
+		{
+			let level = 'levelCount' + i;
+			console.log(level);
+			spriteTable[level] = new Image();
+			spriteTable[level].src = level.concat('.png');
+		}
+		
 	}
 }
 
-
-//DRAWS COLORED LINES
+//DRAWS COLORED LINES  
 function drawColoredLines()
 {
 	let colors = ["#42ad42", "#efa539", "#3194ff", "#c663e7", "#e77352" ];
@@ -646,19 +1293,21 @@ function drawColoredLines()
 		context.fillStyle = colors[i];
 		context.strokeStyle = '#d0e8e0'; 
 	}
-	//dont strok inside loops.
+	//dont stroke inside loops.
 	context.stroke();
 }
 
 // Main game loop.
-
-
-function run()
+function run(timeStamp)
 {
-	window.requestAnimationFrame(run);
+	//update these values.
+	clock.updateFields(timeStamp);
+	dialogueBox.timer.updateFields(timeStamp);
+		
 	context.clearRect(0, 0, canvas.width, canvas.height);
 	context.beginPath();
 	update();
+	window.requestAnimationFrame(run);
 }
 
 function update()
@@ -669,27 +1318,31 @@ function update()
 	board.paint(context);
 	scoreboard.paint(context);
 	rulesViewer.paint(context);
+	dialogueBox.paint(context);		
 }
 
 function main()
 {
-	
 	//SPRITE TABLE NEEDS TO COME FIRST.
 	spriteTable = new Array();
 	loadSpriteTable();
 	
 	board = new Board();
-	//scoreboard comes before 
+	
+	//scoreboard comes after.
 	scoreboard = new Scoreboard(spriteTable['scoreboard']);
 	rulesViewer = new TutorialViewer();
+	dialogueBox = new DialogueBox();
+	clock = new Clock();
 	
 	board.loadBoard();
+	
 	
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
 	
-	//setInterval(run, 33);
-	
+	roundAdvance = false;
+	roundEnd = false;
 	run();
 }
 
