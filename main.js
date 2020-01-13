@@ -65,7 +65,18 @@ function onClick(event)
 		dialogueBox.clicks++;
 		dialogueBox.setString("You've found all hidden cards!");
 		board.flipAll();
+		return;
 	}
+	
+	//check if it is the about button being clicked.
+	if (isValid(rulesViewer.point.x + 10, rulesViewer.point.y + 10, event.clientX, event.clientY, rulesViewer.dimension))
+	{
+		rulesViewer.viewToggle = !rulesViewer.viewToggle;
+		return;
+	}
+	
+	//disable clicking if the options menu is open.
+	if(rulesViewer.viewToggle) return;
 	
 	//check all tile coordinates, add dimension size to each point 
 	for(let i = 0; i < 5; i++)
@@ -78,7 +89,7 @@ function onClick(event)
 			let currentX = board.tileSet[i][j].point.x + 10;
 			let currentY = board.tileSet[i][j].point.y + 10;
 			
-			if(isValid(currentX, currentY, currentMouseX, currentMouseY)) 
+			if(isValid(currentX, currentY, currentMouseX, currentMouseY, dimension)) 
 			{
 				if(event.button == 0) //left click.
 				{
@@ -94,10 +105,21 @@ function onClick(event)
 			}
 		}
 	}
+	
 }
 //KEY LISTENERS FOR KEYBOARD.
 function keyDown(event)
 {
+	if(rulesViewer.viewToggle)
+	{
+		event.preventDefault();
+		if (event.code == 'Escape')
+		{
+			rulesViewer.viewToggle = !rulesViewer.viewToggle;
+		}
+		return;
+	}
+	
 	if(roundEnd)
 	{
 		event.preventDefault();
@@ -118,7 +140,7 @@ function keyDown(event)
 	
 	//all three event codes.
 	if(event.code == 'Digit1' || event.code == 'Digit2'
-	   || event.code == 'Digit3' || event.code == 'KeyX')
+	   || event.code == 'Digit3' || event.code == 'Backquote')
 	{
 		//if using the mouse to move.
 		if(mouseMove)
@@ -132,7 +154,7 @@ function keyDown(event)
 				
 					let curTile = board.tileSet[i][j];
 				
-					if(isValid(currentX, currentY, mouseX, mouseY))
+					if(isValid(currentX, currentY, mouseX, mouseY, dimension))
 					{
 						markTile(event.code, curTile);
 					}
@@ -195,7 +217,10 @@ function keyDown(event)
 		let curTile = board.tileSet[current[0]][current[1]];
 		flipTile(curTile);
 	}
-
+	else if(event.code == 'Escape')
+	{
+		rulesViewer.viewToggle = !rulesViewer.viewToggle;
+	}
 }
 
 function markTile(code, curTile)
@@ -211,7 +236,7 @@ function markTile(code, curTile)
 		case 'Digit3':
 			curTile.markedThree = !curTile.markedThree;
 			break;
-		case 'KeyX':
+		case 'Backquote':
 			curTile.markedDead = !curTile.markedDead;
 			break;
 	}
@@ -236,8 +261,8 @@ function flipTile(curTile)
 				scoreboard.score *= 2;
 				scoreboard.flippedCards++;
 				scoreboard.scoreThisRound *= 2;
-				dialogueBox.setString('x2! Received ' + scoreboard.score + ' coins!');
-				dialogueBox.enableTimed();
+				//dialogueBox.setString('x2! Received ' + scoreboard.score + ' coins!');
+				//dialogueBox.enableTimed();
 			}
 			break;
 		case 'tapped3':
@@ -246,14 +271,15 @@ function flipTile(curTile)
 				scoreboard.score *= 3;
 				scoreboard.scoreThisRound *= 3;
 				scoreboard.flippedCards++;
-				dialogueBox.setString('x3! Received ' + scoreboard.score + ' coins!');
-				dialogueBox.enableTimed();
+				//dialogueBox.setString('x3! Received ' + scoreboard.scoreThisRound + ' coins!');
+				//dialogueBox.enableTimed();
 			}
 			break;		
 		case 'tappedLose':
 			dialogueBox.enable();
 			dialogueBox.setString('Oh no! You get 0 coins!');
-			roundEnd = true;
+			roundEnd = true; //DISABLE ME IF YOU WANT TO NEVER LOSE
+			
 			break;
 	}
 	
@@ -270,7 +296,7 @@ function flipTile(curTile)
 }
 
 //CHECKS IF GIVEN POINTS ARE A VALID TILE
-function isValid(pointX, pointY, currentMouseX, currentMouseY)
+function isValid(pointX, pointY, currentMouseX, currentMouseY, dimension)
 {
 	return currentMouseX >= (pointX) &&	
 				currentMouseX <= (pointX + Math.floor(dimension)) &&
@@ -353,8 +379,8 @@ class Tile
 				animating = true;
 				
 				clock.countFrames();
-				if (clock.frameCounter > clock.fps * 1.05) //this right here decides duration
-														//of the animation. Higher = longer animation
+				if (clock.frameCounter > clock.fps * 1.50) //this right here decides duration
+														   //of the animation. Higher = longer animation
 				{
 					this.loopIndex++;
 					clock.frameCounter = 0;	
@@ -733,57 +759,91 @@ class Scoreboard
 	constructor(viewer)
 	{
 		this.level = 1;
-		this.score = 1;
+		
 		this.viewer = viewer;
 		
 		this.point = new Point(window.innerWidth / 70, window.innerHeight / 70);
 		
 		this.width = window.innerWidth / 2.65;
-		this.height = window.innerHeight / 2;
+		this.height = window.innerHeight / 1.05;
 		this.flippedCards = 0;
 		
-		//tracker for 
+		
+		//global trackers
 		this.maxRoundScore = 0;
 		this.scoreThisRound = 1;
-		
+		this.totalScore = 0;
 	}
 	
 	paint(context)
 	{
 		context.drawImage(this.viewer, this.point.x, this.point.y, this.width, this.height);
 		
-		//calculate point/dimension for 'your coins:'
-		let coinsWidth = (this.width - this.point.x) * .5;
-		let coinsHeight = (this.height - this.point.y) * .3;
-		let coinsX = this.point.x + (this.width * .275);
-		let coinsY = this.point.y + (this.height * .025);
 		
-		context.drawImage(spriteTable['yourCoins'], coinsX, coinsY, coinsWidth, coinsHeight);
-		
-		this.drawScore(context);
+		this.drawText(context);
+		this.drawRoundScore(context);
+		this.drawTotalScore(context);
 		this.drawLevel(context);
 	}
 	
+	//updates the viewer when window is resized. make sure it matches all fields in constructor!
 	updateViewer()
 	{
 		this.point = new Point(window.innerWidth / 70, window.innerHeight / 70);
 		this.width = window.innerWidth / 2.65;
-		this.height = window.innerHeight / 2;
+		this.height = window.innerHeight / 1.05;
+	}
+	
+	drawText(context)
+	{
+		//calculate point/dimension for 'collected coins'
+		let coinsWidth = (this.width - this.point.x) * .45;
+		let coinsHeight = (this.height - this.point.y) * .1;
+		let coinsX = this.point.x + (this.width * .3);
+		let coinsY = this.point.y + (this.height * .5);
+		
+		
+		context.drawImage(spriteTable['yourCoins'], coinsX, coinsY, coinsWidth, coinsHeight);
+		
+		//recalculate all stuff for collected coins.
+		coinsX = this.point.x + (this.width * .275);
+		coinsY = this.point.y + (this.height * .0575);
+		coinsWidth = (this.width - this.point.x) * .5;
+		coinsHeight = (this.height - this.point.y) * .2;
+		
+		
+		context.drawImage(spriteTable['collectedCoins'], coinsX, coinsY, coinsWidth, coinsHeight);
+	}
+	
+	drawTotalScore(context)
+	{
+		let scoreWidth = (this.width - this.point.x) * .15;
+		let scoreHeight = (this.height - this.point.y) * .2;
+		
+		let scoreX = this.point.x + (this.width * .125);
+		let scoreY = this.point.y + (this.height * .625);
+		
+		
+		let temp = this.scoreToString(this.totalScore);
+		for (let i = 0; i <= 4; i++)
+		{
+			let sprite = "score" + temp.charAt(i);
+			context.drawImage(spriteTable[sprite], scoreX + (i * this.width / 6.5), scoreY, scoreWidth, scoreHeight);
+		}
 	}
 	
 	//draws the score board
-	drawScore(context)
+	drawRoundScore(context)
 	{
 		let scoreWidth = (this.width - this.point.x) * .15;
-		let scoreHeight = (this.height - this.point.y) * .45;
+		let scoreHeight = (this.height - this.point.y) * .2;
 		
-		let scoreX = this.point.x + (this.width * .125)
-		let scoreY = this.point.y + (this.height * .25);
+		let scoreX = this.point.x + (this.width * .125);
+		let scoreY = this.point.y + (this.height * .275);
 		
-		let temp = this.score.toString();
-		while(temp.length < 5) temp = "0" + temp;
-		
-		
+		//let temp = this.scoreThisRound.toString();
+		let temp = this.scoreToString(this.scoreThisRound);
+			
 		for(let i = 0; i <= 4; i++)
 		{	
 			let sprite = "score" + temp.charAt(i);
@@ -793,13 +853,20 @@ class Scoreboard
 	
 	drawLevel(context)
 	{
-		let levelWidth = (this.width - this.point.x) * .2;
+		let levelWidth = (this.width - this.point.x) * .25;
 		let levelHeight = (this.height - this.point.y) * .1;
-		let levelX = this.point.x + (this.width * .4);
-		let levelY = this.point.y + (this.height * .8);
+		let levelX = this.point.x + (this.width * .39);
+		let levelY = this.point.y + (this.height * .85);
 		
 		
 		context.drawImage(spriteTable['levelCount' + this.level], levelX, levelY, levelWidth, levelHeight);
+	}
+	
+	scoreToString(score)
+	{
+		let temp = score.toString();
+		while(temp.length < 5) temp = "0" + temp;
+		return temp;
 	}
 	
 }
@@ -808,23 +875,57 @@ class TutorialViewer
 {
 	constructor()
 	{
-		this.point = new Point(window.innerWidth * .045, window.innerHeight * .55);
-		this.height = window.innerHeight * .32;
-		this.width = window.innerWidth * .32;
+		this.point = new Point(window.innerWidth * .9, window.innerHeight * .8);
+		this.dimension = (window.innerWidth + window.innerHeight) * 0.04;
+		
+		this.viewToggle = false;
+		
+		this.box = spriteTable['aboutBackground'];
+		this.boxX;
+		this.boxY;
+		this.boxHeight;
+		this.boxWidth;
+		this.fontSize;
+	
+		this.setDimensions();
 	}
 	
 	paint(context)
 	{
-		context.drawImage(spriteTable['rules'], this.point.x, this.point.y, this.width, this.height);
+		
+		context.drawImage(spriteTable['about'], this.point.x, this.point.y, this.dimension, this.dimension);
+		if(this.viewToggle)
+		{
+			context.save();
+			context.fillStyle = 'rgb(0, 0, 0, 0.5)';
+			context.fillRect(0, 0, canvas.width, canvas.height);
+			context.drawImage(this.box, this.boxX, this.boxY, this.boxWidth, this.boxHeight);
+			this.drawText
+			context.restore();
+		}		
+	}
+	
+	setDimensions()
+	{
+		this.boxX = window.innerWidth * .1;
+		this.boxY = window.innerHeight *.1;
+		this.boxHeight = window.innerHeight * .75;
+		this.boxWidth = window.innerWidth * .75;
+		
+		this.fontSize = this.boxHeight * .075 + this.boxWidth * .075;
+	}
+	
+	drawText()
+	{
+		
 	}
 	
 	updateViewer()
 	{
-		this.point = new Point(window.innerWidth * .045, window.innerHeight * .55);
-		this.height = window.innerHeight * .32;
-		this.width = window.innerWidth * .32;
+		this.point = new Point(window.innerWidth * .9, window.innerHeight * .8);
+		this.dimension = (window.innerWidth + window.innerHeight) * 0.04;
+		this.setDimensions();
 	}
-	
 }
 
 class DialogueBox
@@ -863,7 +964,7 @@ class DialogueBox
 			
 			if(roundEnd || roundAdvance) //end of round
 			{
-				if(this.clicks >= 2) //advance round from here!
+				if(this.clicks >= 2 && roundEnd) //advance round from here!
 				{
 					this.viewToggle = false;
 					board.flipBackwards();	
@@ -872,11 +973,28 @@ class DialogueBox
 					{
 						this.clicks = 0;
 						this.viewToggle = false;
-						//roundEnd = false;
-						//roundAdvance = false;
 					}
 				}
 				
+				if(this.clicks == 2 && roundAdvance)
+				{
+					
+					this.string = 'Advancing level';
+				}
+				else if(this.clicks > 2 && roundAdvance)
+				{
+					this.viewToggle = false;
+					board.flipBackwards();
+					
+					if(!animating)
+					{
+						this.clicks = 0;
+						this.viewToggle = false;
+					}
+					
+				}
+				
+				//draws the opaque rectangle aroudn the whole screen.
 				context.fillStyle = 'rgb(0, 0, 0, 0.5)';
 				context.fillRect(0, 0, canvas.width, canvas.height);
 				this.drawBox(context);
@@ -889,7 +1007,7 @@ class DialogueBox
 				{
 					this.drawBox(context);
 				}
-				else //stops drawing the box.
+				else //stops drawing the dialogue box.
 				{
 					this.viewToggle = false;
 					this.timedWindow = false;
@@ -955,23 +1073,23 @@ class DialogueBox
 
 function advanceRound()
 {		
-	console.log('advancing round...');
+	
+	scoreboard.totalScore += scoreboard.scoreThisRound;
 	scoreboard.scoreThisRound = 1;
 	scoreboard.flippedCards = 0;
+	//alert("total score: " + scoreboard.totalScore);
+	
 	roundAdvance = false;
 	
 	if(scoreboard.level != 8)
 	{
 		scoreboard.level++;
-		dialogueBox.enableTimed();
-		dialogueBox.setString('Advancing  to level ' + scoreboard.level);
 	}
 	else
 	{
 		dialogueBox.enable();
 		dialogueBox.setString('Congrats! You won!');
 	}
-	
 	board.loadBoard();
 }
 
@@ -980,8 +1098,9 @@ function endRound()
 {	
 	scoreboard.score = 1;
 	//uncomment this line when more difficulties are added
-	scoreboard.scoreThisRound = 1;
-
+	scoreboard.scoreThisRound = 1
+	scoreboard.totalScore = 0;
+	
 	scoreboard.level = 1;
 	scoreboard.flippedCards = 0;
 	roundEnd = false;
@@ -1178,14 +1297,20 @@ function loadSpriteTable()
 	spriteTable['scoreboard'] = new Image();
 	spriteTable['scoreboard'].src = 'scoreboard.png';
 	
+	spriteTable['aboutBackground'] = new Image();
+	spriteTable['aboutBackground'].src = 'aboutBackground.png';
+	
 	spriteTable['rules'] = new Image();
 	spriteTable['rules'].src = 'rules.png';
 	
-
+	spriteTable['about'] = new Image();
+	spriteTable['about'].src = 'about.png';
 	
 	spriteTable['yourCoins'] = new Image();
 	spriteTable['yourCoins'].src = 'yourCoins.png';
 	
+	spriteTable['collectedCoins'] = new Image();
+	spriteTable['collectedCoins'].src = 'collectedCoins.png';
 	
 	
 	spriteTable['voltorb'] = new Image();
@@ -1317,8 +1442,8 @@ function update()
 	drawColoredLines();
 	board.paint(context);
 	scoreboard.paint(context);
+	dialogueBox.paint(context);	
 	rulesViewer.paint(context);
-	dialogueBox.paint(context);		
 }
 
 function main()
