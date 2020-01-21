@@ -11,16 +11,26 @@ const TILEHEIGHT = 787;
 const TILEWIDTH = 790;
 
 //BELOW ARE ALL GAME RELATED INSTANCE VALUES
-var spriteTable, board, scoreboard, rulesViewer, clock, dialogueBox;
+var spriteTable, board, scoreboard, menu, clock, dialogueBox, audioTable;
 
 //current holds the board position of the 'current' tile.
 var current = [0, 0];
 //mouseMove is a boolean that tells whether client is using keys or mouse.
-var mouseMove, roundEnd, roundAdvance;
+var mouseMove, roundEnd, roundAdvance, mouseOverTile;
 
 
 //is there an animation happening right now?
 var animating = false;
+
+const States = {
+			DEFAULT: 'default',
+			ABOUT: 'about',
+			RULES: 'rules',
+			SOUND: 'sound',
+			RESET: 'reset',
+			CONTROLS: 'controls',
+			BACK: 'back'
+		}
 
 //dimension of each tile is a global variable.
 var dimension = calculateDim();
@@ -40,6 +50,34 @@ function updateXY(event)
 	mouseX = event.clientX;
 	mouseY = event.clientY;
 	mouseMove = true;
+	
+	if (!menu.viewToggle && !dialogueBox.viewToggle)
+	{
+		for(let i = 0; i < 5; i++)
+		{
+			for(let j = 0; j < 5; j++)
+			{
+				let currentMouseX = event.clientX;
+				let currentMouseY = event.clientY;
+			
+				//let currentX = board.tileSet[i][j].point.x + 10; 
+				//let currentY = board.tileSet[i][j].point.y + 10; //IF TILES ARE ACTING FUCKY WHEN BEING CLICKED THEN TRY ADDING SOME OFFSET.
+			
+				let currentX = board.tileSet[i][j].point.x; 
+				let currentY = board.tileSet[i][j].point.y;
+			
+				if(isValid(currentX, currentY, currentMouseX, currentMouseY, dimension)) 
+				{
+					current[0] = i; 
+					current[1] = j;
+					//mouseOverTile = true;
+					break;
+				}
+			}
+		}
+	}
+	
+	
 }
 
 function calculateDim()
@@ -52,10 +90,14 @@ function onClick(event)
 {
 	console.log("Mouse x: " + event.clientX);
 	console.log("Mouse y: " + event.clientY);
+	
+	//ALL CONDITIONAL GAME STATE STUFF BELOW HERE.
 	if(roundEnd)
 	{
 		dialogueBox.clicks++;
-		dialogueBox.setString('Dropping to level 1');
+		//catch scoreboard < 1
+		if (scoreboard.level != 1) dialogueBox.setString('Dropping to level ' + scoreboard.level - 1);
+		else dialogueBox.setString('Dropping to level 1');
 		board.flipAll();
 		return;
 	}
@@ -68,16 +110,24 @@ function onClick(event)
 		return;
 	}
 	
-	//check if it is the about button being clicked.
-	if (isValid(rulesViewer.point.x + 10, rulesViewer.point.y + 10, event.clientX, event.clientY, rulesViewer.dimension))
+	//check if it is the menuIcon button being clicked.
+	if (mouseX >= menu.iconPoint.x + 10 && mouseX <= (menu.iconPoint.x + menu.menuIconWidth + 5) && mouseY >= (menu.iconPoint.y) && mouseY <= (menu.iconPoint.y * 1.02) + menu.menuIconHeight)
 	{
-		rulesViewer.viewToggle = !rulesViewer.viewToggle;
+		menu.viewToggle = true;
+		//alert(menu.iconPoint.y);
 		return;
 	}
 	
 	//disable clicking if the options menu is open.
-	if(rulesViewer.viewToggle) return;
+	if(menu.viewToggle)
+	{
+		menu.setHighlightedItem();
+		menu.doAction();
+		return;
+	}
 	
+	
+	//GAME STATE FUNCTIONS END HERE.
 	//check all tile coordinates, add dimension size to each point 
 	for(let i = 0; i < 5; i++)
 	{
@@ -86,8 +136,11 @@ function onClick(event)
 			let currentMouseX = event.clientX;
 			let currentMouseY = event.clientY;
 			
-			let currentX = board.tileSet[i][j].point.x + 10;
-			let currentY = board.tileSet[i][j].point.y + 10;
+			//let currentX = board.tileSet[i][j].point.x + 10; 
+			//let currentY = board.tileSet[i][j].point.y + 10; //IF TILES ARE ACTING FUCKY WHEN BEING CLICKED THEN TRY ADDING SOME OFFSET.
+			
+			let currentX = board.tileSet[i][j].point.x; 
+			let currentY = board.tileSet[i][j].point.y;
 			
 			if(isValid(currentX, currentY, currentMouseX, currentMouseY, dimension)) 
 			{
@@ -105,36 +158,88 @@ function onClick(event)
 			}
 		}
 	}
-	
 }
-//KEY LISTENERS FOR KEYBOARD.
+//KEY LISTENERS FOR KEYBOARD. IMPORTANT: Whenever the keyboard is used, mouseMove is set to false.
 function keyDown(event)
 {
-	if(rulesViewer.viewToggle)
+	
+	//when the menu is open, do these actions.
+	if(menu.viewToggle)
 	{
+		mouseMove = false;
 		event.preventDefault();
-		if (event.code == 'Escape')
+		switch (event.code)
 		{
-			rulesViewer.viewToggle = !rulesViewer.viewToggle;
+			case 'Escape':
+				if (menu.currentState != States.DEFAULT) menu.currentState = States.DEFAULT;
+				else menu.viewToggle = !menu.viewToggle;
+				break;
+			case 'ArrowUp':
+				if (menu.selectedIndex == 0)
+				{
+					menu.selectedIndex = 4;
+					menu.selectedItem = 'Reset';
+				}
+				else
+				{
+					menu.selectedIndex--;
+					menu.selectedItem = menu.optionItems[menu.selectedIndex];
+				}
+				break;
+			case 'ArrowDown':
+				if (menu.selectedIndex == 4)
+				{
+					menu.selectedIndex = 0;
+					menu.selectedItem = 'About';
+				}
+				else
+				{
+					menu.selectedIndex++;
+					menu.selectedItem = menu.optionItems[menu.selectedIndex];
+				}
+				break;
+			case 'Enter':
+			case 'Space':
+				//menu.setHighlightedItem();
+				menu.doAction();
+				break;
+			case 'ArrowLeft':
+				menu.selectedItem = 'Back';
+				break;
+			case 'ArrowRight':
+				menu.selectedItem = 'About';
+				//menu.selectedIndex = 0;
+				break;
 		}
+		audioTable['select'].play();
 		return;
 	}
 	
 	if(roundEnd)
 	{
-		event.preventDefault();
-		dialogueBox.clicks++;
-		dialogueBox.setString('Dropping to level 1');
-		board.flipAll();
-		return;
+		//event.preventDefault();
+		if (event.code =='Space' || event.code == 'Enter')
+		{
+			dialogueBox.clicks++;
+			dialogueBox.setString('Dropping to level 1');
+			board.flipAll();
+			audioTable['select'].play();
+		}
+		return; //abort after performing these actions.
 	}
 	
 	if(roundAdvance)
 	{
-		event.preventDefault();
-		dialogueBox.clicks++;
-		dialogueBox.setString("You've found all hidden cards!");
-		board.flipAll();
+		if (event.code == 'Space' || event.code == 'Enter')
+		{
+			
+			event.preventDefault();
+			dialogueBox.clicks++;
+			dialogueBox.setString("You've found all hidden cards!");
+			board.flipAll();
+			audioTable['select'].play();
+		}
+		return;
 	}
 	
 	
@@ -209,9 +314,9 @@ function keyDown(event)
 				}
 				break;
 		}
-			
+		audioTable['select'].play();
 	}
-	else if(event.code == 'Space')
+	else if(event.code == 'Space' || event.code == 'Enter')
 	{
 		event.preventDefault();
 		let curTile = board.tileSet[current[0]][current[1]];
@@ -219,7 +324,7 @@ function keyDown(event)
 	}
 	else if(event.code == 'Escape')
 	{
-		rulesViewer.viewToggle = !rulesViewer.viewToggle;
+		menu.viewToggle = !menu.viewToggle;
 	}
 }
 
@@ -279,7 +384,6 @@ function flipTile(curTile)
 			dialogueBox.enable();
 			dialogueBox.setString('Oh no! You get 0 coins!');
 			roundEnd = true; //DISABLE ME IF YOU WANT TO NEVER LOSE
-			
 			break;
 	}
 	
@@ -311,7 +415,7 @@ function resizeCanvas()
 	canvas.height = window.innerHeight;
 	dimension = calculateDim();
 	
-	rulesViewer.updateViewer();
+	menu.updateViewer();
 	scoreboard.updateViewer();
 	board.updateBoard();
 	dialogueBox.updateBox();
@@ -379,7 +483,7 @@ class Tile
 				animating = true;
 				
 				clock.countFrames();
-				if (clock.frameCounter > clock.fps * 1.50) //this right here decides duration
+				if (clock.frameCounter > clock.fps * 1.75) //this right here decides duration
 														   //of the animation. Higher = longer animation
 				{
 					this.loopIndex++;
@@ -443,12 +547,11 @@ class Tile
 				context.drawImage(spriteTable[this.value], curX, curY, dimension, dimension);
 			}
 			
-			//this guy last because he goes on top of other tiles.
-			if (this.checkHover(i, j))
+			//this guy last because he is drawn on top of other tiles.
+			if (this.checkHover(i, j) && menu.viewToggle == false)
 			{
 				this.drawHover(context, curX, curY);
-				if(this.startAnimate && !this.kaboomDisable)
-					this.animateKaboom(context, curX, curY, i, j);
+				if(this.startAnimate && !this.kaboomDisable) this.animateKaboom(context, curX, curY, i, j);
 			}
 
 		}
@@ -460,7 +563,7 @@ class Tile
 		
 		checkHover(i, j)
 		{
-			return i == current[0] && j == current[1] && !mouseMove;
+			return i == current[0] && j == current[1];
 		}
 		
 		drawOutside(context, curX, curY)
@@ -733,7 +836,6 @@ class Board
 	
 	flipBackwards()
 	{
-		console.log('flipping backwards');
 		for(let i = 0; i <= 4; i++)
 		{
 			for(let j = 0; j <= 4; j++)
@@ -871,60 +973,264 @@ class Scoreboard
 	
 }
 
-class TutorialViewer
+class Menu
 {
 	constructor()
 	{
-		this.point = new Point(window.innerWidth * .9, window.innerHeight * .8);
-		this.dimension = (window.innerWidth + window.innerHeight) * 0.04;
+		this.iconPoint;
 		
 		this.viewToggle = false;
 		
-		this.box = spriteTable['aboutBackground'];
-		this.boxX;
-		this.boxY;
-		this.boxHeight;
-		this.boxWidth;
-		this.fontSize;
-	
+		this.box = spriteTable['menuBackground'];
+		//fields for locating shtuff.
+		this.boxX, this.boxY, this.boxHeight, this.boxWidth, this.fontSize, this.itemX, this.menuIconWidth, this.menuIconHeight;
+		//fields for back button location
+		this.backX, this.backY, this.backDim;
+		
+		//itemYArray is useful because it keeps track of each menu items y-location so it doesn't have to constantly be recalculated. if window is resized then it is recalculated.
+		this.itemYArray = [0, 0, 0, 0, 0];
+		
+		//just the current state of the menu. Probably a better way to do it but this works fine.
+		this.currentState = States.DEFAULT;
+		
+		this.optionItems = [ 'About', 'Rules', 'Sound', 'Controls', 'Reset'];
+		
+		//selected option is a field that holds the currently selected value. Initialized to default.
+		this.selectedItem = 'About';
+		this.selectedIndex = 0;
+		
 		this.setDimensions();
 	}
 	
 	paint(context)
 	{
-		
-		context.drawImage(spriteTable['about'], this.point.x, this.point.y, this.dimension, this.dimension);
+		context.drawImage(spriteTable['menuIcon'], this.iconPoint.x, this.iconPoint.y, this.menuIconWidth, this.menuIconHeight);
 		if(this.viewToggle)
-		{
+		{	
 			context.save();
+			
+			//fill in screen with opaque rectangle.
 			context.fillStyle = 'rgb(0, 0, 0, 0.5)';
 			context.fillRect(0, 0, canvas.width, canvas.height);
+			
+			//draw the actual menu box.
 			context.drawImage(this.box, this.boxX, this.boxY, this.boxWidth, this.boxHeight);
-			this.drawText
-			context.restore();
-		}		
+			
+			
+			let tempX, tempY, tempH, tempW = 0;
+			
+			switch (this.currentState)
+			{
+				case States.DEFAULT:
+					this.setHighlightedItem();
+					this.paintMenuItems(context);
+					this.highlight(context);
+					break;
+				case States.CONTROLS:
+					tempX = this.boxX * 3.5;
+					tempY = this.boxY * 1.5;
+					tempH = this.boxHeight * .9;
+					tempW = this.boxWidth * .375;
+					context.drawImage(spriteTable['controls'], tempX, tempY, tempW, tempH);
+					break;
+				case States.RULES:
+					tempX = this.boxX * 3.125;
+					tempY = this.boxY * 1.5;
+					tempH = this.boxHeight * .9;
+					tempW = this.boxWidth * .45;
+					context.drawImage(spriteTable['rules'], tempX, tempY, tempW, tempH);
+					break;
+				case States.ABOUT: 
+					tempX = this.boxX * 3.25;
+					tempY = this.boxY * 1.5;
+					tempH = this.boxHeight * .6;
+					tempW = this.boxWidth * .4;
+					context.drawImage(spriteTable['about'], tempX, tempY, tempW, tempH);
+					break;
+			}
+			//make 'back' hover work on all states.
+			if (this.backHover() || this.selectedItem == 'Back')
+			{
+				context.beginPath();
+				context.strokeStyle = "red";
+				context.rect(this.backX - (.01 * this.backX), this.backY - (.01 * this.backY), this.boxWidth * .06, this.boxHeight * .1);
+				context.stroke();
+			}
+			
+			//Back is visible from every menu option. 
+			this.paintBack(context);
+			
+			context.restore();	
+		}
 	}
 	
 	setDimensions()
 	{
+		//all control menu dimensions.
+		this.menuIconWidth = window.innerWidth * .075;
+		this.menuIconHeight = window.innerHeight * .1;
+		this.iconPoint = new Point(window.innerWidth * .85, window.innerHeight * .8);
+		console.log(this.iconPoint.y);
+		
+		//all control box/viewer dimensions.
 		this.boxX = window.innerWidth * .1;
 		this.boxY = window.innerHeight *.1;
 		this.boxHeight = window.innerHeight * .75;
 		this.boxWidth = window.innerWidth * .75;
 		
-		this.fontSize = this.boxHeight * .075 + this.boxWidth * .075;
+		//calculating position for back button. Make sure comes after box calculations.
+		this.backX = this.boxX * 1.4;
+		this.backY = this.boxY * 1.5;
+		this.backDim = this.boxHeight / 10;
+		
+		
+		//generate all y-coordinates.
+		let temp = this.boxY + (this.boxHeight * .185);
+		
+		for (let i = 0; i < this.optionItems.length; i++, temp += (this.boxHeight * .185))
+		{
+			this.itemYArray[i] = temp;
+		}
+		
+		//generate x-coordinate. Doesn't change.
+		this.itemX = this.boxX + (this.boxWidth * .4);
+		
+		this.fontSize = this.boxHeight * .06 + this.boxWidth * .06;
 	}
 	
-	drawText()
+	//this method will be run and updated constantly whenever the menu is open.
+	setHighlightedItem()
 	{
-		
+		let selectX = this.itemX * .965; //how far outside of the x coordinate can be selected.
+		console.log('moving? ' + mouseMove);
+		if(mouseMove)
+		{
+			if (mouseX > (selectX) && mouseX < (this.itemX * 1.6) && mouseY > this.itemYArray[0] *.625 && mouseY < this.itemYArray[0] * 1.2)
+			{
+				this.selectedItem = 'About';
+				this.selectedIndex = 0;
+			}
+			else if (mouseX > (selectX) && mouseX < (this.itemX * 1.6) && mouseY > this.itemYArray[1] * .75 && mouseY < this.itemYArray[1] * 1.2)
+			{
+				this.selectedItem = 'Rules';
+				this.selectedIndex = 1;
+			}
+			else if (mouseX > (selectX) && mouseX < this.itemX * 1.6 && mouseY > this.itemYArray[2] * .81 && mouseY < this.itemYArray[2] * 1.1)
+			{
+				this.selectedItem = 'Sound';
+				this.selectedIndex = 2;
+			}
+			else if (mouseX > (selectX) && mouseX < this.itemX * 1.6 && mouseY > this.itemYArray[3] * .85 && mouseY < this.itemYArray[3] * 1.05)
+			{
+				this.selectedItem = 'Controls';
+				this.selectedIndex = 3;
+			}
+			else if (mouseX > (selectX) && mouseX < this.itemX * 1.5 && mouseY > this.itemYArray[4] * .875 && mouseY < this.itemYArray[4] * 1.2)
+			{
+				this.selectedItem = 'Reset';
+				this.selectedIndex = 4;
+			}
+			else if (this.backHover())
+			{
+				this.selectedItem = 'Back';
+			}
+		}
 	}
 	
 	updateViewer()
 	{
 		this.point = new Point(window.innerWidth * .9, window.innerHeight * .8);
-		this.dimension = (window.innerWidth + window.innerHeight) * 0.04;
+		this.dimension = (window.innerWidth + window.innerHeight) *
 		this.setDimensions();
+	}
+	
+	paintMenuItems(context)
+	{
+		context.save();
+		
+		context.font = this.fontSize + 'px DSFONT';
+		context.fillStyle = '#4d4d55';
+		
+		for (let i = 0; i < this.optionItems.length; i++)
+		{
+			context.fillText(this.optionItems[i], this.itemX, this.itemYArray[i]);
+		}
+		
+		context.restore();
+	}
+	
+	//highlight just draws the rect. It doesn't handle the coordinate shit. 
+	highlight(context)
+	{
+		context.beginPath();
+		context.strokeStyle = "red";
+		
+		let rectX = this.itemX * .965;
+		let rectWidth = this.boxWidth;
+		let rectHeight = this.boxHeight;
+		
+		switch(this.selectedItem)
+		{
+			case this.optionItems[0]: //'About'
+				context.rect(rectX, this.itemYArray[0] * .625, rectWidth * .2, rectHeight * .15);
+				context.stroke();
+				break;
+			case this.optionItems[1]: //'Rules'
+				context.rect(rectX, this.itemYArray[1] * .75, rectWidth * .2, rectHeight * .15);
+				context.stroke();
+				break;
+			case this.optionItems[2]: //'Sound'
+				context.rect(rectX, this.itemYArray[2] * .81, rectWidth * .23, rectHeight * .15);
+				context.stroke();
+				break;
+			case this.optionItems[3]: //'Controls'
+				context.rect(rectX, this.itemYArray[3] * .85, rectWidth * .3, rectHeight * .15);
+				context.stroke();
+				break;
+			case this.optionItems[4]: //'Reset'
+				context.rect(rectX, this.itemYArray[4] * .875, rectWidth * .2, rectHeight * .15);
+				context.stroke();
+				break;
+			default:
+				break;
+		}
+	}
+	
+	//just switch the toggle.
+	doAction()
+	{	
+		switch(this.selectedItem)
+		{
+			case 'About':
+				this.currentState = States.ABOUT;
+				break;
+			case 'Rules':
+				this.currentState = States.RULES;
+				break;
+			case 'Sound':
+				break;
+			case 'Controls':
+				this.currentState = States.CONTROLS;
+				break;
+			case 'Reset':
+				resetGame();
+				alert('Game Reset.');
+				break;
+			case 'Back':
+				if (this.currentState == States.DEFAULT) this.viewToggle = false;
+				else this.currentState = States.DEFAULT;
+				break;
+		}
+	}
+	
+	paintBack(context)
+	{
+		context.drawImage(spriteTable['back'], this.backX, this.backY, this.backDim, this.backDim);
+	}
+	
+	backHover()
+	{ 
+		return mouseX >= this.backX && mouseX <= (this.backX + this.backDim) && mouseY >= this.backY && mouseY <= (this.backY + this.backDim);
 	}
 }
 
@@ -978,19 +1284,29 @@ class DialogueBox
 				
 				if(this.clicks == 2 && roundAdvance)
 				{
-					
-					this.string = 'Advancing level';
+					if(scoreboard.level + 1 > 8)
+					{
+						this.string = 'Congratulations! You won with a score of ' + scoreboard.totalScore;
+					}
+					else
+					{
+						this.string = 'Advancing to level ' + (scoreboard.level + 1) + '.';
+					}
 				}
 				else if(this.clicks > 2 && roundAdvance)
 				{
 					this.viewToggle = false;
 					board.flipBackwards();
 					
+					this.viewToggle = false;
+					this.clicks = 0;
+					/*
 					if(!animating)
 					{
 						this.clicks = 0;
 						this.viewToggle = false;
 					}
+					*/
 					
 				}
 				
@@ -1069,6 +1385,10 @@ class DialogueBox
 		this.timer.reset();
 	}
 	
+	disable()
+	{
+		this.viewToggle = false;
+	}
 }
 
 function advanceRound()
@@ -1077,19 +1397,19 @@ function advanceRound()
 	scoreboard.totalScore += scoreboard.scoreThisRound;
 	scoreboard.scoreThisRound = 1;
 	scoreboard.flippedCards = 0;
-	//alert("total score: " + scoreboard.totalScore);
-	
 	roundAdvance = false;
 	
 	if(scoreboard.level != 8)
 	{
 		scoreboard.level++;
+		dialogueBox.disable();
 	}
 	else
 	{
 		dialogueBox.enable();
 		dialogueBox.setString('Congrats! You won!');
 	}
+	
 	board.loadBoard();
 }
 
@@ -1099,9 +1419,25 @@ function endRound()
 	scoreboard.score = 1;
 	//uncomment this line when more difficulties are added
 	scoreboard.scoreThisRound = 1
+	//scoreboard.totalScore = 0;
+	
+	if (scoreboard.level - 1 == 0) scoreboard.level = 1;
+	else scoreboard.level--;
+	
+	scoreboard.flippedCards = 0;
+	roundEnd = false;
+	board.loadBoard();
+}
+
+function resetGame()
+{
+	scoreboard.score = 1;
+	//uncomment this line when more difficulties are added
+	scoreboard.scoreThisRound = 1
+	//scoreboard.totalScore = 0;
+	scoreboard.level = 1;
 	scoreboard.totalScore = 0;
 	
-	scoreboard.level = 1;
 	scoreboard.flippedCards = 0;
 	roundEnd = false;
 	board.loadBoard();
@@ -1167,6 +1503,7 @@ function getRandomRange(num)
 {
 	return Math.floor(Math.random() * num);
 }
+
 //PUTS VOLTORBS ON BOARD
 function placeVoltorbs(level)
 {
@@ -1297,14 +1634,17 @@ function loadSpriteTable()
 	spriteTable['scoreboard'] = new Image();
 	spriteTable['scoreboard'].src = 'scoreboard.png';
 	
-	spriteTable['aboutBackground'] = new Image();
-	spriteTable['aboutBackground'].src = 'aboutBackground.png';
+	spriteTable['menuBackground'] = new Image();
+	spriteTable['menuBackground'].src = 'menuBackground.png';
+	
+	spriteTable['about'] = new Image();
+	spriteTable['about'].src = 'about.png';
 	
 	spriteTable['rules'] = new Image();
 	spriteTable['rules'].src = 'rules.png';
 	
-	spriteTable['about'] = new Image();
-	spriteTable['about'].src = 'about.png';
+	spriteTable['menuIcon'] = new Image();
+	spriteTable['menuIcon'].src = 'menuIcon.png';
 	
 	spriteTable['yourCoins'] = new Image();
 	spriteTable['yourCoins'].src = 'yourCoins.png';
@@ -1312,6 +1652,11 @@ function loadSpriteTable()
 	spriteTable['collectedCoins'] = new Image();
 	spriteTable['collectedCoins'].src = 'collectedCoins.png';
 	
+	spriteTable['controls'] = new Image();
+	spriteTable['controls'].src = 'controls.png';
+	
+	spriteTable['back'] = new Image();
+	spriteTable['back'].src = 'back.png';
 	
 	spriteTable['voltorb'] = new Image();
 	spriteTable['voltorb'].src = 'voltorb.png';
@@ -1333,8 +1678,6 @@ function loadSpriteTable()
 	spriteTable['gameOverText'] = new Image();
 	spriteTable['gameOverText'].src = 'gameOverText.png';
 	
-
-	
 	//just load through a for loop
 	for(let i = 0; i <= 9; i++)
 	{
@@ -1346,7 +1689,7 @@ function loadSpriteTable()
 		spriteTable[str] = new Image();
 		spriteTable[str].src = str.concat('.png');
 		
-		//tapped tiles 1-3, and rulesViewer 1 -3
+		//tapped tiles 1-3, and menu 1 -3
 		spriteTable['dead'] = new Image();
 		spriteTable['dead'].src = 'dead.png';
 		if (i != 0 && i < 4)
@@ -1391,6 +1734,22 @@ function loadSpriteTable()
 	}
 }
 
+function loadAudioTable()
+{
+	audioTable = new Array();
+	
+	audioTable['theme'] = new Audio('theme.mp3');
+	audioTable['select'] = new Audio('select.mp3');
+	
+	audioTable['theme'].volume = .6;
+}
+
+function setMouseType()
+{	
+	if (mouseOverTile) document.body.style.cursor = "pointer";
+	else document.body.style.cursor = "default";
+}
+
 //DRAWS COLORED LINES  
 function drawColoredLines()
 {
@@ -1425,10 +1784,10 @@ function drawColoredLines()
 // Main game loop.
 function run(timeStamp)
 {
+	
 	//update these values.
 	clock.updateFields(timeStamp);
 	dialogueBox.timer.updateFields(timeStamp);
-		
 	context.clearRect(0, 0, canvas.width, canvas.height);
 	context.beginPath();
 	update();
@@ -1437,13 +1796,15 @@ function run(timeStamp)
 
 function update()
 {
+	setMouseType();
+	
 	//clear rect at start of every function
 	context.beginPath();
 	drawColoredLines();
 	board.paint(context);
 	scoreboard.paint(context);
-	dialogueBox.paint(context);	
-	rulesViewer.paint(context);
+	menu.paint(context);
+	dialogueBox.paint(context);
 }
 
 function main()
@@ -1451,12 +1812,13 @@ function main()
 	//SPRITE TABLE NEEDS TO COME FIRST.
 	spriteTable = new Array();
 	loadSpriteTable();
+	loadAudioTable();
 	
 	board = new Board();
 	
 	//scoreboard comes after.
 	scoreboard = new Scoreboard(spriteTable['scoreboard']);
-	rulesViewer = new TutorialViewer();
+	menu = new Menu();
 	dialogueBox = new DialogueBox();
 	clock = new Clock();
 	
@@ -1470,6 +1832,3 @@ function main()
 	roundEnd = false;
 	run();
 }
-
-
-
