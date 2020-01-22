@@ -217,7 +217,7 @@ function keyDown(event)
 	
 	if(roundEnd)
 	{
-		//event.preventDefault();
+		event.preventDefault();
 		if (event.code =='Space' || event.code == 'Enter')
 		{
 			dialogueBox.clicks++;
