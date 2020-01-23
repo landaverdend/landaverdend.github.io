@@ -3,7 +3,8 @@ var canvas = document.getElementById('canvas');
 var context = canvas.getContext('2d');
 
 //stop context menu from coming up on right click.
-canvas.oncontextmenu = function (e) {
+canvas.oncontextmenu = function (e) 
+{
     e.preventDefault();
 };
 
@@ -16,7 +17,7 @@ var spriteTable, board, scoreboard, menu, clock, dialogueBox, audioTable;
 //current holds the board position of the 'current' tile.
 var current = [0, 0];
 //mouseMove is a boolean that tells whether client is using keys or mouse.
-var mouseMove, roundEnd, roundAdvance, mouseOverTile;
+var mouseMove, roundEnd, roundAdvance, mouseOverTile, titleScreenOn;
 
 
 //is there an animation happening right now?
@@ -50,6 +51,7 @@ function updateXY(event)
 	mouseX = event.clientX;
 	mouseY = event.clientY;
 	mouseMove = true;
+	
 	
 	if (!menu.viewToggle && !dialogueBox.viewToggle)
 	{
@@ -88,6 +90,14 @@ function calculateDim()
 //EACH TIME A TILE IS CLICKED, THIS METHOD IS CALLED.
 function onClick(event)
 {
+	event.preventDefault();
+	//if title scren is on then get rid of it.
+	if (titleScreenOn) 
+	{
+		titleScreenOn = false;
+		audioTable['theme'].play();
+		return;
+	}
 	console.log("Mouse x: " + event.clientX);
 	console.log("Mouse y: " + event.clientY);
 	
@@ -162,12 +172,21 @@ function onClick(event)
 //KEY LISTENERS FOR KEYBOARD. IMPORTANT: Whenever the keyboard is used, mouseMove is set to false.
 function keyDown(event)
 {
+	if (titleScreenOn) 
+	{
+		event.preventDefault();
+		audioTable['theme'].play();
+		titleScreenOn = false;
+		return;
+	}
 	
 	//when the menu is open, do these actions.
 	if(menu.viewToggle)
 	{
 		mouseMove = false;
 		event.preventDefault();
+		audioTable['select'].play();
+		
 		switch (event.code)
 		{
 			case 'Escape':
@@ -223,7 +242,7 @@ function keyDown(event)
 			dialogueBox.clicks++;
 			dialogueBox.setString('Dropping to level 1');
 			board.flipAll();
-			audioTable['select'].play();
+			
 		}
 		return; //abort after performing these actions.
 	}
@@ -237,7 +256,7 @@ function keyDown(event)
 			dialogueBox.clicks++;
 			dialogueBox.setString("You've found all hidden cards!");
 			board.flipAll();
-			audioTable['select'].play();
+			//audioTable['select'].play();
 		}
 		return;
 	}
@@ -349,10 +368,7 @@ function markTile(code, curTile)
 
 function flipTile(curTile)
 {
-	if(curTile.clicked)
-		return;	
-	
-	
+	if(curTile.clicked) return;	
 	//disable below line if you want to be able to do multiple flips
 	if(animating) return;
 	
@@ -415,9 +431,10 @@ function resizeCanvas()
 	canvas.height = window.innerHeight;
 	dimension = calculateDim();
 	
-	menu.updateViewer();
+	
 	scoreboard.updateViewer();
 	board.updateBoard();
+	menu.updateViewer();
 	dialogueBox.updateBox();
 }
 //HOLDER CLASS FOR X AND Y COORDINATES OF PAGE ELEMENTS
@@ -769,7 +786,7 @@ class Board
 	loadBoard()
 	{
 		var xGap = dimension * 1.15;
-		var xCounter = (window.innerWidth * .2) + (window.innerWidth / 5);
+		var xCounter = (window.innerWidth * .2) + (window.innerWidth * .2);
 		var yGap = (dimension * 1.1);
 		var yCounter = 2;
 		
@@ -864,23 +881,23 @@ class Scoreboard
 		
 		this.viewer = viewer;
 		
-		this.point = new Point(window.innerWidth / 70, window.innerHeight / 70);
+		this.point;
 		
-		this.width = window.innerWidth / 2.65;
-		this.height = window.innerHeight / 1.05;
+		this.width;
+		this.height;
 		this.flippedCards = 0;
-		
 		
 		//global trackers
 		this.maxRoundScore = 0;
 		this.scoreThisRound = 1;
 		this.totalScore = 0;
+		
+		this.updateViewer();
 	}
 	
 	paint(context)
 	{
 		context.drawImage(this.viewer, this.point.x, this.point.y, this.width, this.height);
-		
 		
 		this.drawText(context);
 		this.drawRoundScore(context);
@@ -891,9 +908,9 @@ class Scoreboard
 	//updates the viewer when window is resized. make sure it matches all fields in constructor!
 	updateViewer()
 	{
-		this.point = new Point(window.innerWidth / 70, window.innerHeight / 70);
+		this.point = new Point(window.innerWidth / 70, window.innerHeight * .01);
 		this.width = window.innerWidth / 2.65;
-		this.height = window.innerHeight / 1.05;
+		this.height = dimension * 6.25;
 	}
 	
 	drawText(context)
@@ -1047,7 +1064,11 @@ class Menu
 					tempW = this.boxWidth * .4;
 					context.drawImage(spriteTable['about'], tempX, tempY, tempW, tempH);
 					break;
+				case States.SOUND:
+					this.displaySound();
+					break;
 			}
+
 			//make 'back' hover work on all states.
 			if (this.backHover() || this.selectedItem == 'Back')
 			{
@@ -1067,9 +1088,11 @@ class Menu
 	setDimensions()
 	{
 		//all control menu dimensions.
-		this.menuIconWidth = window.innerWidth * .075;
-		this.menuIconHeight = window.innerHeight * .1;
-		this.iconPoint = new Point(window.innerWidth * .85, window.innerHeight * .8);
+		//this.menuIconWidth = window.innerWidth * .045;
+		//this.menuIconHeight = window.innerHeight * .09;
+		this.menuIconWidth = dimension * .75;
+		this.menuIconHeight = dimension * .75;
+		this.iconPoint = new Point(board.tileSet[5][5].point.x, board.tileSet[5][5].point.y * 1.01);
 		console.log(this.iconPoint.y);
 		
 		//all control box/viewer dimensions.
@@ -1083,10 +1106,8 @@ class Menu
 		this.backY = this.boxY * 1.5;
 		this.backDim = this.boxHeight / 10;
 		
-		
 		//generate all y-coordinates.
 		let temp = this.boxY + (this.boxHeight * .185);
-		
 		for (let i = 0; i < this.optionItems.length; i++, temp += (this.boxHeight * .185))
 		{
 			this.itemYArray[i] = temp;
@@ -1102,7 +1123,7 @@ class Menu
 	setHighlightedItem()
 	{
 		let selectX = this.itemX * .965; //how far outside of the x coordinate can be selected.
-		console.log('moving? ' + mouseMove);
+		//console.log('moving? ' + mouseMove);
 		if(mouseMove)
 		{
 			if (mouseX > (selectX) && mouseX < (this.itemX * 1.6) && mouseY > this.itemYArray[0] *.625 && mouseY < this.itemYArray[0] * 1.2)
@@ -1168,27 +1189,34 @@ class Menu
 		let rectX = this.itemX * .965;
 		let rectWidth = this.boxWidth;
 		let rectHeight = this.boxHeight;
+		context.font = this.fontSize * .8 + 'px DSFONT';
+		context.fillStyle = '#4d4d55';
 		
 		switch(this.selectedItem)
 		{
 			case this.optionItems[0]: //'About'
-				context.rect(rectX, this.itemYArray[0] * .625, rectWidth * .2, rectHeight * .15);
+				rectWidth = context.measureText('About').width * 1.5;
+				context.rect(rectX, this.itemYArray[0] * .625, rectWidth, rectHeight * .15);
 				context.stroke();
 				break;
 			case this.optionItems[1]: //'Rules'
-				context.rect(rectX, this.itemYArray[1] * .75, rectWidth * .2, rectHeight * .15);
+				rectWidth = context.measureText('Rules').width * 1.5;
+				context.rect(rectX, this.itemYArray[1] * .75, rectWidth, rectHeight * .15);
 				context.stroke();
 				break;
 			case this.optionItems[2]: //'Sound'
-				context.rect(rectX, this.itemYArray[2] * .81, rectWidth * .23, rectHeight * .15);
+				rectWidth = context.measureText('Sound').width * 1.5;
+				context.rect(rectX, this.itemYArray[2] * .81, rectWidth, rectHeight * .15);
 				context.stroke();
 				break;
 			case this.optionItems[3]: //'Controls'
-				context.rect(rectX, this.itemYArray[3] * .85, rectWidth * .3, rectHeight * .15);
+				rectWidth = context.measureText('Controls').width * 1.5;
+				context.rect(rectX, this.itemYArray[3] * .85, rectWidth, rectHeight * .15);
 				context.stroke();
 				break;
 			case this.optionItems[4]: //'Reset'
-				context.rect(rectX, this.itemYArray[4] * .875, rectWidth * .2, rectHeight * .15);
+				rectWidth = context.measureText('Reset').width * 1.5;
+				context.rect(rectX, this.itemYArray[4] * .875, rectWidth, rectHeight * .15);
 				context.stroke();
 				break;
 			default:
@@ -1196,33 +1224,68 @@ class Menu
 		}
 	}
 	
-	//just switch the toggle.
-	doAction()
-	{	
-		switch(this.selectedItem)
-		{
-			case 'About':
-				this.currentState = States.ABOUT;
-				break;
-			case 'Rules':
-				this.currentState = States.RULES;
-				break;
-			case 'Sound':
-				break;
-			case 'Controls':
-				this.currentState = States.CONTROLS;
-				break;
-			case 'Reset':
-				resetGame();
-				alert('Game Reset.');
-				break;
-			case 'Back':
-				if (this.currentState == States.DEFAULT) this.viewToggle = false;
-				else this.currentState = States.DEFAULT;
-				break;
-		}
+	displaySound()
+	{
+		let stringX = this.boxX * 2.5;
+		let stringY = this.boxY * 2.5;
+		let buttonDim = dimension * .4;
+		
+		context.font = this.fontSize * .8 + 'px DSFONT';
+		context.fillStyle = '#4d4d55';
+		
+		let str1 = 'Music: 100';
+		let str2 = 'Sound Effects: 100';
+		
+		context.fillText(str1, stringX, stringY);
+		
+		let buttonX = stringX + context.measureText(str1).width * 1.1;
+		let buttonY = this.boxY * 2;
+		
+		context.drawImage(spriteTable['soundDown'], buttonX, buttonY, buttonDim, buttonDim);
+		context.drawImage(spriteTable['soundUp'], buttonX + (buttonDim * 1.1), buttonY, buttonDim, buttonDim);
+		
+		//do it again for second string.
+		context.fillText('Sound Effects: 100', stringX, stringY * 1.5);
+		
+		buttonX = stringX + context.measureText(str2).width * 1.05;
+		buttonY = this.boxY * 3.2;
+		
+		context.drawImage(spriteTable['soundDown'], buttonX, buttonY, buttonDim, buttonDim);
+		context.drawImage(spriteTable['soundUp'], buttonX + (buttonDim * 1.1), buttonY, buttonDim, buttonDim);
 	}
 	
+	//just switch the toggle.
+	doAction()
+	{		
+		if (this.selectedItem == 'Back')
+		{
+			if (this.currentState == States.DEFAULT) this.viewToggle = false;
+			else this.currentState = States.DEFAULT;
+		}
+		
+		if (this.currentState == States.DEFAULT)
+		{
+			switch(this.selectedItem)
+			{
+				case 'About':
+					this.currentState = States.ABOUT;
+					break;
+				case 'Rules':
+					this.currentState = States.RULES;
+					break;
+				case 'Sound':
+					this.currentState = States.SOUND;
+					break;
+				case 'Controls':
+					this.currentState = States.CONTROLS;
+					break;
+				case 'Reset':
+					resetGame();
+					alert('Game Reset.');
+					break;
+			}
+		}
+	}
 	paintBack(context)
 	{
 		context.drawImage(spriteTable['back'], this.backX, this.backY, this.backDim, this.backDim);
@@ -1634,8 +1697,18 @@ function loadSpriteTable()
 	spriteTable['scoreboard'] = new Image();
 	spriteTable['scoreboard'].src = 'scoreboard.png';
 	
+	spriteTable['titleScreen'] = new Image();
+	spriteTable['titleScreen'].src = 'titleScreen.png';
+	
 	spriteTable['menuBackground'] = new Image();
 	spriteTable['menuBackground'].src = 'menuBackground.png';
+	
+	
+	spriteTable['soundUp'] = new Image();
+	spriteTable['soundUp'].src = 'soundUp.png';
+	
+	spriteTable['soundDown'] = new Image();
+	spriteTable['soundDown'].src = 'soundDown.png';
 	
 	spriteTable['about'] = new Image();
 	spriteTable['about'].src = 'about.png';
@@ -1740,7 +1813,6 @@ function loadAudioTable()
 	
 	audioTable['theme'] = new Audio('theme.mp3');
 	audioTable['select'] = new Audio('select.mp3');
-	
 	audioTable['theme'].volume = .6;
 }
 
@@ -1784,13 +1856,16 @@ function drawColoredLines()
 // Main game loop.
 function run(timeStamp)
 {
-	
-	//update these values.
-	clock.updateFields(timeStamp);
-	dialogueBox.timer.updateFields(timeStamp);
-	context.clearRect(0, 0, canvas.width, canvas.height);
-	context.beginPath();
-	update();
+	if(titleScreenOn) context.drawImage(spriteTable['titleScreen'], 0, 0, window.innerWidth, window.innerHeight);
+	else 
+	{
+		//update these values.
+		clock.updateFields(timeStamp);
+		dialogueBox.timer.updateFields(timeStamp);
+		context.clearRect(0, 0, canvas.width, canvas.height);
+		context.beginPath();
+		update();
+	}
 	window.requestAnimationFrame(run);
 }
 
@@ -1817,18 +1892,22 @@ function main()
 	board = new Board();
 	
 	//scoreboard comes after.
+	
 	scoreboard = new Scoreboard(spriteTable['scoreboard']);
+	board.loadBoard();
 	menu = new Menu();
 	dialogueBox = new DialogueBox();
 	clock = new Clock();
 	
-	board.loadBoard();
+	
 	
 	
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
 	
+	//initialize all game states here.
 	roundAdvance = false;
 	roundEnd = false;
+	titleScreenOn = true;
 	run();
 }
