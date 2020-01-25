@@ -52,6 +52,12 @@ function updateXY(event)
 	mouseY = event.clientY;
 	mouseMove = true;
 	
+	if(menu.checkMouseOverMenuIcon(mouseX, mouseY))
+	{
+		
+		return;
+	}
+	
 	
 	if (!menu.viewToggle && !dialogueBox.viewToggle)
 	{
@@ -121,10 +127,9 @@ function onClick(event)
 	}
 	
 	//check if it is the menuIcon button being clicked.
-	if (mouseX >= menu.iconPoint.x + 10 && mouseX <= (menu.iconPoint.x + menu.menuIconWidth + 5) && mouseY >= (menu.iconPoint.y) && mouseY <= (menu.iconPoint.y * 1.02) + menu.menuIconHeight)
+	if (menu.checkMouseOverMenuIcon(mouseX, mouseY))
 	{
 		menu.viewToggle = true;
-		//alert(menu.iconPoint.y);
 		return;
 	}
 	
@@ -1025,14 +1030,12 @@ class Menu
 		if(this.viewToggle)
 		{	
 			context.save();
-			
 			//fill in screen with opaque rectangle.
 			context.fillStyle = 'rgb(0, 0, 0, 0.5)';
 			context.fillRect(0, 0, canvas.width, canvas.height);
 			
 			//draw the actual menu box.
 			context.drawImage(this.box, this.boxX, this.boxY, this.boxWidth, this.boxHeight);
-			
 			
 			let tempX, tempY, tempH, tempW = 0;
 			
@@ -1070,16 +1073,16 @@ class Menu
 			}
 
 			//make 'back' hover work on all states.
-			if (this.backHover() || this.selectedItem == 'Back')
+			if (this.checkMouseOverBack() || this.selectedItem == 'Back')
 			{
 				context.beginPath();
 				context.strokeStyle = "red";
-				context.rect(this.backX - (.01 * this.backX), this.backY - (.01 * this.backY), this.boxWidth * .06, this.boxHeight * .1);
+				context.rect(this.backX - (.02 * this.backX), this.backY - (.02 * this.backY), this.backDim * 1.2, this.backDim * 1.1);
 				context.stroke();
 			}
 			
 			//Back is visible from every menu option. 
-			this.paintBack(context);
+			this.paintBackHover(context);
 			
 			context.restore();	
 		}
@@ -1151,10 +1154,10 @@ class Menu
 				this.selectedItem = 'Reset';
 				this.selectedIndex = 4;
 			}
-			else if (this.backHover())
+			else if (this.checkMouseOverBack())
 			{
 				this.selectedItem = 'Back';
-			}
+			} 
 		}
 	}
 	
@@ -1286,14 +1289,24 @@ class Menu
 			}
 		}
 	}
-	paintBack(context)
+	paintBackHover(context)
 	{
 		context.drawImage(spriteTable['back'], this.backX, this.backY, this.backDim, this.backDim);
 	}
 	
-	backHover()
+	paintMenuHover(context)
+	{
+		alert('working');
+	}
+	
+	checkMouseOverBack()
 	{ 
 		return mouseX >= this.backX && mouseX <= (this.backX + this.backDim) && mouseY >= this.backY && mouseY <= (this.backY + this.backDim);
+	}
+	
+	checkMouseOverMenuIcon(mouseX, mouseY)
+	{
+		return mouseX >= menu.iconPoint.x + 10 && mouseX <= (menu.iconPoint.x + menu.menuIconWidth + 5) && mouseY >= (menu.iconPoint.y) && mouseY <= (menu.iconPoint.y * 1.02) + menu.menuIconHeight;
 	}
 }
 
@@ -1898,8 +1911,6 @@ function main()
 	menu = new Menu();
 	dialogueBox = new DialogueBox();
 	clock = new Clock();
-	
-	
 	
 	
 	canvas.width = window.innerWidth;
