@@ -53,8 +53,7 @@ function updateXY(event)
 	mouseMove = true;
 	
 	if(menu.checkMouseOverMenuIcon(mouseX, mouseY))
-	{
-		
+	{	
 		return;
 	}
 	
@@ -90,7 +89,9 @@ function updateXY(event)
 
 function calculateDim()
 {
-	return (window.innerHeight + (window.innerWidth * 1.2)) / 25;
+	//return (window.innerHeight + (window.innerWidth * 1.2)) / 25;
+	return (window.innerHeight + (window.innerWidth * 1.2)) * .0325;
+
 }
 
 //EACH TIME A TILE IS CLICKED, THIS METHOD IS CALLED.
@@ -110,10 +111,21 @@ function onClick(event)
 	//ALL CONDITIONAL GAME STATE STUFF BELOW HERE.
 	if(roundEnd)
 	{
+		
 		dialogueBox.clicks++;
 		//catch scoreboard < 1
-		if (scoreboard.level != 1) dialogueBox.setString('Dropping to level ' + scoreboard.level - 1);
-		else dialogueBox.setString('Dropping to level 1');
+		//let temp = scoreboard.level - 1;
+		if(scoreboard.level == 1) 
+		{
+			dialogueBox.setString('Resetting Collected Coins');
+			scoreboard.totalScore = 0;
+		}
+		else
+		{
+			dialogueBox.setString('Dropping to level ' + (scoreboard.level - 1) + '.');
+		}
+		
+		
 		board.flipAll();
 		return;
 	}
@@ -228,11 +240,14 @@ function keyDown(event)
 				menu.doAction();
 				break;
 			case 'ArrowLeft':
-				menu.selectedItem = 'Back';
+				if(menu.selectedItem != 'Back') menu.selectedItem = 'Back';
 				break;
 			case 'ArrowRight':
-				menu.selectedItem = 'About';
-				//menu.selectedIndex = 0;
+				if (menu.selectedItem == 'Back') 
+				{
+					menu.selectedItem = 'About';
+					menu.selectedIndex = 0;
+				}	
 				break;
 		}
 		audioTable['select'].play();
@@ -375,7 +390,7 @@ function flipTile(curTile)
 {
 	if(curTile.clicked) return;	
 	//disable below line if you want to be able to do multiple flips
-	if(animating) return;
+	//if(animating) return;
 	
 	switch(curTile.value)
 	{
@@ -435,8 +450,7 @@ function resizeCanvas()
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
 	dimension = calculateDim();
-	
-	
+		
 	scoreboard.updateViewer();
 	board.updateBoard();
 	menu.updateViewer();
@@ -456,6 +470,7 @@ class Point
 		return "(" + this.x + ", " + this.y + ")";
 	}
 }
+
 //TILE HANDLES: EACH SPOT ON THE BOARD IS A TILE OBJECT, TILE PAINTS STUFF.
 class Tile
 {
@@ -505,7 +520,7 @@ class Tile
 				animating = true;
 				
 				clock.countFrames();
-				if (clock.frameCounter > clock.fps * 1.75) //this right here decides duration
+				if (clock.frameCounter > clock.fps * 1.25) //this right here decides duration
 														   //of the animation. Higher = longer animation
 				{
 					this.loopIndex++;
@@ -790,14 +805,14 @@ class Board
 	
 	loadBoard()
 	{
-		var xGap = dimension * 1.15;
-		var xCounter = (window.innerWidth * .2) + (window.innerWidth * .2);
-		var yGap = (dimension * 1.1);
-		var yCounter = 2;
+		let xGap = dimension * 1.15;
+		let xCounter = this.calculateTileSetX();
+		let yGap = (dimension * 1.1);
+		let yCounter = 2;
 		
-		for(var i = 0; i < SIZE; i++)
+		for(let i = 0; i < SIZE; i++)
 		{
-			for(var j = 0; j < SIZE; j++, xCounter += xGap)
+			for(let j = 0; j < SIZE; j++, xCounter += xGap)
 			{
 				board.tileSet[i][j] = new Tile(0, 'tapped1', spriteTable['default'], new Point(xCounter, yCounter));
 				//set outside tiles to true.
@@ -807,7 +822,7 @@ class Board
 				}
 			}
 			
-			xCounter = (window.innerWidth * .2) + (window.innerWidth / 5);
+			xCounter = this.calculateTileSetX();
 			yCounter += yGap;	
 		}
 		
@@ -818,10 +833,10 @@ class Board
 	//utility to reload new points without compromising game state.
 	updateBoard()
 	{
-		var xGap = dimension * 1.15;
-		var xCounter = (window.innerWidth * .2) + (window.innerWidth / 5);
-		var yGap = (dimension * 1.1);
-		var yCounter = 2;	
+		let xGap = dimension * 1.15;
+		let xCounter = this.calculateTileSetX();
+		let yGap = (dimension * 1.1);
+		let yCounter = 2;	
 	
 		for(let i = 0; i < SIZE; i++)
 		{
@@ -830,9 +845,14 @@ class Board
 				board.tileSet[i][j].point.x = xCounter;
 				board.tileSet[i][j].point.y = yCounter;
 			}
-			xCounter = (window.innerWidth * .2) + (window.innerWidth / 5);
+			xCounter = this.calculateTileSetX();
 			yCounter += yGap;
 		}
+	}
+	
+	calculateTileSetX()
+	{
+		return (window.innerWidth * .5);
 	}
 	
 	//Dude I have no clue why it doesn't just work the normal way but for now he works.
@@ -913,26 +933,33 @@ class Scoreboard
 	//updates the viewer when window is resized. make sure it matches all fields in constructor!
 	updateViewer()
 	{
-		this.point = new Point(window.innerWidth / 70, window.innerHeight * .01);
-		this.width = window.innerWidth / 2.65;
+		
+		
+		
+		//this.width = window.innerWidth / 2.65;
+		this.width = dimension * 6.25;
+		let x = board.calculateTileSetX() - (this.width * 1.05);
+		
+		this.point = new Point(x, window.innerHeight * .01);
 		this.height = dimension * 6.25;
 	}
 	
 	drawText(context)
 	{
 		//calculate point/dimension for 'collected coins'
-		let coinsWidth = (this.width - this.point.x) * .45;
-		let coinsHeight = (this.height - this.point.y) * .1;
-		let coinsX = this.point.x + (this.width * .3);
+		let coinsX = this.point.x + (this.width * .325);
 		let coinsY = this.point.y + (this.height * .5);
 		
+		let coinsWidth = dimension * 2.5;
+		let coinsHeight = dimension * .6;
 		
 		context.drawImage(spriteTable['yourCoins'], coinsX, coinsY, coinsWidth, coinsHeight);
 		
 		//recalculate all stuff for collected coins.
 		coinsX = this.point.x + (this.width * .275);
 		coinsY = this.point.y + (this.height * .0575);
-		coinsWidth = (this.width - this.point.x) * .5;
+		
+		coinsWidth = dimension * 3;
 		coinsHeight = (this.height - this.point.y) * .2;
 		
 		
@@ -941,45 +968,50 @@ class Scoreboard
 	
 	drawTotalScore(context)
 	{
-		let scoreWidth = (this.width - this.point.x) * .15;
-		let scoreHeight = (this.height - this.point.y) * .2;
+		let scoreWidth = dimension * .8;
+		let scoreHeight = (this.height - this.point.y) * .225;
 		
-		let scoreX = this.point.x + (this.width * .125);
-		let scoreY = this.point.y + (this.height * .625);
-		
+		let scoreX = this.point.x + (this.width * .175);
+		let scoreY = this.point.y + (this.height * .6125);
 		
 		let temp = this.scoreToString(this.totalScore);
+		
 		for (let i = 0; i <= 4; i++)
 		{
 			let sprite = "score" + temp.charAt(i);
-			context.drawImage(spriteTable[sprite], scoreX + (i * this.width / 6.5), scoreY, scoreWidth, scoreHeight);
+			
+			context.drawImage(spriteTable[sprite], scoreX, scoreY, scoreWidth, scoreHeight);
+			
+			scoreX += scoreWidth * 1.07;
 		}
 	}
 	
 	//draws the score board
 	drawRoundScore(context)
 	{
-		let scoreWidth = (this.width - this.point.x) * .15;
-		let scoreHeight = (this.height - this.point.y) * .2;
+		let scoreWidth = dimension * .8;
+		let scoreHeight = dimension * 1.25;
 		
-		let scoreX = this.point.x + (this.width * .125);
-		let scoreY = this.point.y + (this.height * .275);
+		let scoreX = this.point.x + (this.width * .175);
+		let scoreY = this.point.y + (this.height * .265);
 		
 		//let temp = this.scoreThisRound.toString();
 		let temp = this.scoreToString(this.scoreThisRound);
-			
+		
 		for(let i = 0; i <= 4; i++)
 		{	
 			let sprite = "score" + temp.charAt(i);
-			context.drawImage(spriteTable[sprite], scoreX + (i * this.width / 6.5), scoreY, scoreWidth, scoreHeight);
+			context.drawImage(spriteTable[sprite], scoreX, scoreY, scoreWidth, scoreHeight);
+			
+			scoreX += scoreWidth * 1.07;
 		}
 	}
 	
 	drawLevel(context)
 	{
-		let levelWidth = (this.width - this.point.x) * .25;
-		let levelHeight = (this.height - this.point.y) * .1;
-		let levelX = this.point.x + (this.width * .39);
+		let levelWidth = (this.width - this.point.x) * .3;
+		let levelHeight = (this.height - this.point.y) * .075;
+		let levelX = this.point.x + (this.width * .425);
 		let levelY = this.point.y + (this.height * .85);
 		
 		
@@ -1027,10 +1059,13 @@ class Menu
 	paint(context)
 	{
 		context.drawImage(spriteTable['menuIcon'], this.iconPoint.x, this.iconPoint.y, this.menuIconWidth, this.menuIconHeight);
+		this.paintMenuHover(context);
+		
+		
 		if(this.viewToggle)
 		{	
 			context.save();
-			//fill in screen with opaque rectangle.
+			//fill in screen with opaque.
 			context.fillStyle = 'rgb(0, 0, 0, 0.5)';
 			context.fillRect(0, 0, canvas.width, canvas.height);
 			
@@ -1073,7 +1108,9 @@ class Menu
 			}
 
 			//make 'back' hover work on all states.
-			if (this.checkMouseOverBack() || this.selectedItem == 'Back')
+			if (this.checkMouseOverBack(mouseX, mouseY) && this.selectedItem == 'Back' 
+				|| (this.currentState != States.DEFAULT && this.checkMouseOverBack())
+				|| (this.selectedItem == 'Back') && !mouseMove)
 			{
 				context.beginPath();
 				context.strokeStyle = "red";
@@ -1082,7 +1119,7 @@ class Menu
 			}
 			
 			//Back is visible from every menu option. 
-			this.paintBackHover(context);
+			this.paintBackIcon(context);
 			
 			context.restore();	
 		}
@@ -1091,12 +1128,10 @@ class Menu
 	setDimensions()
 	{
 		//all control menu dimensions.
-		//this.menuIconWidth = window.innerWidth * .045;
-		//this.menuIconHeight = window.innerHeight * .09;
+
 		this.menuIconWidth = dimension * .75;
 		this.menuIconHeight = dimension * .75;
 		this.iconPoint = new Point(board.tileSet[5][5].point.x, board.tileSet[5][5].point.y * 1.01);
-		console.log(this.iconPoint.y);
 		
 		//all control box/viewer dimensions.
 		this.boxX = window.innerWidth * .1;
@@ -1126,7 +1161,7 @@ class Menu
 	setHighlightedItem()
 	{
 		let selectX = this.itemX * .965; //how far outside of the x coordinate can be selected.
-		//console.log('moving? ' + mouseMove);
+		
 		if(mouseMove)
 		{
 			if (mouseX > (selectX) && mouseX < (this.itemX * 1.6) && mouseY > this.itemYArray[0] *.625 && mouseY < this.itemYArray[0] * 1.2)
@@ -1154,8 +1189,9 @@ class Menu
 				this.selectedItem = 'Reset';
 				this.selectedIndex = 4;
 			}
-			else if (this.checkMouseOverBack())
+			else if (this.checkMouseOverBack(mouseX, mouseY))
 			{
+				//console.log('working');
 				this.selectedItem = 'Back';
 			} 
 		}
@@ -1289,17 +1325,20 @@ class Menu
 			}
 		}
 	}
-	paintBackHover(context)
+	paintBackIcon(context)
 	{
 		context.drawImage(spriteTable['back'], this.backX, this.backY, this.backDim, this.backDim);
 	}
 	
 	paintMenuHover(context)
 	{
-		alert('working');
+		if (this.checkMouseOverMenuIcon(mouseX, mouseY))
+		{
+			context.drawImage(spriteTable['menuIconHovered'], this.iconPoint.x, this.iconPoint.y, this.menuIconWidth, this.menuIconHeight);
+		}
 	}
 	
-	checkMouseOverBack()
+	checkMouseOverBack(mouseX, mouseY)
 	{ 
 		return mouseX >= this.backX && mouseX <= (this.backX + this.backDim) && mouseY >= this.backY && mouseY <= (this.backY + this.backDim);
 	}
@@ -1308,6 +1347,8 @@ class Menu
 	{
 		return mouseX >= menu.iconPoint.x + 10 && mouseX <= (menu.iconPoint.x + menu.menuIconWidth + 5) && mouseY >= (menu.iconPoint.y) && mouseY <= (menu.iconPoint.y * 1.02) + menu.menuIconHeight;
 	}
+	
+	
 }
 
 class DialogueBox
@@ -1338,15 +1379,14 @@ class DialogueBox
 	
 	paint(context)
 	{
-		
-		if(this.viewToggle)
+		if (this.viewToggle)
 		{
 			//save the current context values before altering them.
 			context.save();
 			
-			if(roundEnd || roundAdvance) //end of round
+			if (roundEnd || roundAdvance) //end of round
 			{
-				if(this.clicks >= 2 && roundEnd) //advance round from here!
+				if (this.clicks >= 2 && roundEnd) //advance round from here!
 				{
 					this.viewToggle = false;
 					board.flipBackwards();	
@@ -1358,7 +1398,7 @@ class DialogueBox
 					}
 				}
 				
-				if(this.clicks == 2 && roundAdvance)
+				if (this.clicks == 2 && roundAdvance)
 				{
 					if(scoreboard.level + 1 > 8)
 					{
@@ -1376,14 +1416,6 @@ class DialogueBox
 					
 					this.viewToggle = false;
 					this.clicks = 0;
-					/*
-					if(!animating)
-					{
-						this.clicks = 0;
-						this.viewToggle = false;
-					}
-					*/
-					
 				}
 				
 				//draws the opaque rectangle aroudn the whole screen.
@@ -1732,6 +1764,9 @@ function loadSpriteTable()
 	spriteTable['menuIcon'] = new Image();
 	spriteTable['menuIcon'].src = 'menuIcon.png';
 	
+	spriteTable['menuIconHovered'] = new Image();
+	spriteTable['menuIconHovered'].src = 'menuIconHovered.png';
+	
 	spriteTable['yourCoins'] = new Image();
 	spriteTable['yourCoins'].src = 'yourCoins.png';
 	
@@ -1823,7 +1858,7 @@ function loadSpriteTable()
 function loadAudioTable()
 {
 	audioTable = new Array();
-	
+
 	audioTable['theme'] = new Audio('theme.mp3');
 	audioTable['select'] = new Audio('select.mp3');
 	audioTable['theme'].volume = .6;
@@ -1839,6 +1874,7 @@ function setMouseType()
 function drawColoredLines()
 {
 	let colors = ["#42ad42", "#efa539", "#3194ff", "#c663e7", "#e77352" ];
+	let barWidth = (board.tileSet[0][5].point.x - board.tileSet[0][0].point.x);
 	
 	for (let i = 0; i < 5; i++)
 	{
@@ -1854,10 +1890,10 @@ function drawColoredLines()
 
 		//horizontal bars
 	    point = board.tileSet[i][0].point.y + dimension / 2.25;
-		let lastX = board.tileSet[i][0].point.x + (dimension * .2);
+		//let lastX = board.tileSet[i][0].point.x + (dimension * .2);
 		
-		context.rect(board.tileSet[i][0].point.x + 15, point, lastX, dimension * .125);
-		context.fillRect(board.tileSet[i][0].point.x + 15, point, lastX, dimension * .125);
+		context.rect(board.tileSet[i][0].point.x + 15, point, barWidth, dimension * .125);
+		context.fillRect(board.tileSet[i][0].point.x + 15, point, barWidth, dimension * .125);
 		
 		context.fillStyle = colors[i];
 		context.strokeStyle = '#d0e8e0'; 
