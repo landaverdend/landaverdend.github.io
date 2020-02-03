@@ -390,7 +390,7 @@ function flipTile(curTile)
 {
 	if(curTile.clicked) return;	
 	//disable below line if you want to be able to do multiple flips
-	//if(animating) return;
+	if(animating) return;
 	
 	switch(curTile.value)
 	{
@@ -551,7 +551,6 @@ class Tile
 					this.alreadyAnimated = true;
 					this.loopIndex = 0;
 					animating = false; //reset global back to false.
-					
 				}
 				else //regular animation.
 				{
@@ -695,7 +694,7 @@ class Tile
 				this.drawClicked(context, curX, curY);
 				if(bool) this.drawHover(context, curX, curY);
 			}
-			else if (this.loopIndex == 6 || this.loopIndex == 7)
+			else if (this.loopIndex  >= 6 && this.loopIndex <= 7)
 			{
 				this.drawClicked(context, curX, curY);
 				if(bool) this.drawHover(context, curX, curY);
@@ -1347,8 +1346,6 @@ class Menu
 	{
 		return mouseX >= menu.iconPoint.x + 10 && mouseX <= (menu.iconPoint.x + menu.menuIconWidth + 5) && mouseY >= (menu.iconPoint.y) && mouseY <= (menu.iconPoint.y * 1.02) + menu.menuIconHeight;
 	}
-	
-	
 }
 
 class DialogueBox
@@ -1737,102 +1734,102 @@ function generateSpots(level)
 function loadSpriteTable()
 {	
 	spriteTable['default'] = new Image();
-	spriteTable['default'].src = 'tile.png';
+	spriteTable['default'].src = './sprites/tile.png';
 	
 	spriteTable['scoreboard'] = new Image();
-	spriteTable['scoreboard'].src = 'scoreboard.png';
+	spriteTable['scoreboard'].src = './sprites/scoreboard.png';
 	
 	spriteTable['titleScreen'] = new Image();
-	spriteTable['titleScreen'].src = 'titleScreen.png';
+	spriteTable['titleScreen'].src = './sprites/titleScreen.png';
 	
 	spriteTable['menuBackground'] = new Image();
-	spriteTable['menuBackground'].src = 'menuBackground.png';
+	spriteTable['menuBackground'].src = './sprites/menuBackground.png';
 	
 	
 	spriteTable['soundUp'] = new Image();
-	spriteTable['soundUp'].src = 'soundUp.png';
+	spriteTable['soundUp'].src = './sprites/soundUp.png';
 	
 	spriteTable['soundDown'] = new Image();
-	spriteTable['soundDown'].src = 'soundDown.png';
+	spriteTable['soundDown'].src = './sprites/soundDown.png';
 	
 	spriteTable['about'] = new Image();
-	spriteTable['about'].src = 'about.png';
+	spriteTable['about'].src = './sprites/about.png';
 	
 	spriteTable['rules'] = new Image();
-	spriteTable['rules'].src = 'rules.png';
+	spriteTable['rules'].src = './sprites/rules.png';
 	
 	spriteTable['menuIcon'] = new Image();
-	spriteTable['menuIcon'].src = 'menuIcon.png';
+	spriteTable['menuIcon'].src = './sprites/menuIcon.png';
 	
 	spriteTable['menuIconHovered'] = new Image();
-	spriteTable['menuIconHovered'].src = 'menuIconHovered.png';
+	spriteTable['menuIconHovered'].src = './sprites/menuIconHovered.png';
 	
 	spriteTable['yourCoins'] = new Image();
-	spriteTable['yourCoins'].src = 'yourCoins.png';
+	spriteTable['yourCoins'].src = './sprites/yourCoins.png';
 	
 	spriteTable['collectedCoins'] = new Image();
-	spriteTable['collectedCoins'].src = 'collectedCoins.png';
+	spriteTable['collectedCoins'].src = './sprites/collectedCoins.png';
 	
 	spriteTable['controls'] = new Image();
-	spriteTable['controls'].src = 'controls.png';
+	spriteTable['controls'].src = './sprites/controls.png';
 	
 	spriteTable['back'] = new Image();
-	spriteTable['back'].src = 'back.png';
+	spriteTable['back'].src = './sprites/back.png';
 	
 	spriteTable['voltorb'] = new Image();
-	spriteTable['voltorb'].src = 'voltorb.png';
+	spriteTable['voltorb'].src = './sprites/voltorb.png';
 	
 	spriteTable['tileHover'] = new Image();
-	spriteTable['tileHover'].src = 'tileHover.png';
+	spriteTable['tileHover'].src = './sprites/tileHover.png';
 	
 	spriteTable['tappedLose'] = new Image();
-	spriteTable['tappedLose'].src = 'tappedLose.png';
+	spriteTable['tappedLose'].src = './sprites/tappedLose.png';
 	
 	
 	spriteTable['loseText'] = new Image();
-	spriteTable['loseText'].src = 'loseText.png';
+	spriteTable['loseText'].src = './sprites/loseText.png';
 	
 	
 	spriteTable['dialogueBox'] = new Image();
-	spriteTable['dialogueBox'].src = 'dialogueBox.png';
+	spriteTable['dialogueBox'].src = './sprites/dialogueBox.png';
 	
 	spriteTable['gameOverText'] = new Image();
-	spriteTable['gameOverText'].src = 'gameOverText.png';
+	spriteTable['gameOverText'].src = './sprites/gameOverText.png';
 	
 	//just load through a for loop
 	for(let i = 0; i <= 9; i++)
 	{
 		let scoreVal = 'score' + i;
 		spriteTable[scoreVal] = new Image();
-		spriteTable[scoreVal].src = scoreVal.concat('.png');
+		spriteTable[scoreVal].src = './sprites/' + scoreVal.concat('.png');
 		
 		let str = 'spriteCount' + i;
 		spriteTable[str] = new Image();
-		spriteTable[str].src = str.concat('.png');
+		spriteTable[str].src = './sprites/' + str.concat('.png');
 		
 		//tapped tiles 1-3, and menu 1 -3
 		spriteTable['dead'] = new Image();
-		spriteTable['dead'].src = 'dead.png';
+		spriteTable['dead'].src = './sprites/dead.png';
 		if (i != 0 && i < 4)
 		{
 			let temp = 'tapped';
 			temp = temp + i;
 		
 			spriteTable[temp] = new Image();
-			spriteTable[temp].src = temp.concat('.png');
+			spriteTable[temp].src = './sprites/' + temp.concat('.png');
 			
 			temp = 'memo' + i;
 			spriteTable[temp] = new Image();
-			spriteTable[temp].src = temp.concat('.png');
+			spriteTable[temp].src = './sprites/' + temp.concat('.png');
 			
 			temp = 'kaboom' + i;
 			spriteTable[temp] = new Image();
-			spriteTable[temp].src = temp.concat('.png');
+			spriteTable[temp].src = './sprites/' + temp.concat('.png');
 			
 			
 			temp = 'flipAnim' + i;
 			spriteTable[temp] = new Image();
-			spriteTable[temp].src = temp.concat('.png');
+			spriteTable[temp].src = './sprites/' + temp.concat('.png');
 			
 		}
 		
@@ -1841,7 +1838,7 @@ function loadSpriteTable()
 		{
 			let out = 'outsideTile' + i;
 			spriteTable[out] = new Image();
-			spriteTable[out].src = out.concat('.png');
+			spriteTable[out].src = './sprites/' + out.concat('.png');
 		}
 		
 		if (i <= 8 && i > 0)
@@ -1849,7 +1846,7 @@ function loadSpriteTable()
 			let level = 'levelCount' + i;
 			console.log(level);
 			spriteTable[level] = new Image();
-			spriteTable[level].src = level.concat('.png');
+			spriteTable[level].src = './sprites/' + level.concat('.png');
 		}
 		
 	}
@@ -1859,8 +1856,8 @@ function loadAudioTable()
 {
 	audioTable = new Array();
 
-	audioTable['theme'] = new Audio('theme.mp3');
-	audioTable['select'] = new Audio('select.mp3');
+	audioTable['theme'] = new Audio('./audio/theme.mp3');
+	audioTable['select'] = new Audio('./audio/select.mp3');
 	audioTable['theme'].volume = .6;
 }
 
