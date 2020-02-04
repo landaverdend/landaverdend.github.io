@@ -200,6 +200,9 @@ function keyDown(event)
 	//when the menu is open, do these actions.
 	if(menu.viewToggle)
 	{
+		//if the mouse is hovering over the 'back' icon, then dont allow movement.
+		
+		
 		mouseMove = false;
 		event.preventDefault();
 		audioTable['select'].play();
@@ -506,7 +509,7 @@ class Tile
 			this.alreadyAnimated = false;
 			this.kaboomDisable = false;
 			this.loopIndex = 0; //used to keep track of current frame.
-			this.maxFrame = 10;
+			this.maxFrame = 14;
 		}
 		
 		paint(context, i, j)
@@ -694,19 +697,19 @@ class Tile
 				this.drawClicked(context, curX, curY);
 				if(bool) this.drawHover(context, curX, curY);
 			}
-			else if (this.loopIndex  >= 6 && this.loopIndex <= 7)
+			else if (this.loopIndex  >= 6 && this.loopIndex <= 8)
 			{
 				this.drawClicked(context, curX, curY);
 				if(bool) this.drawHover(context, curX, curY);
 				context.drawImage(spriteTable['kaboom1'], kX, kY, kDim, kDim);
 			}
-			else if (this.loopIndex == 8 || this.loopIndex == 9)
+			else if (this.loopIndex >= 9 && this.loopIndex <= 11)
 			{
 				this.drawClicked(context, curX, curY);
 				if(bool) this.drawHover(context, curX, curY);
 				context.drawImage(spriteTable['kaboom2'], kX, kY, kDim, kDim);
 			}
-			else if (this.loopIndex == 10)
+			else if (this.loopIndex >= 12)
 			{
 				this.drawClicked(context, curX, curY);
 				if(bool) this.drawHover(context, curX, curY);
@@ -1067,6 +1070,8 @@ class Menu
 			//fill in screen with opaque.
 			context.fillStyle = 'rgb(0, 0, 0, 0.5)';
 			context.fillRect(0, 0, canvas.width, canvas.height);
+			document.body.style.backgroundColor = "rgb(0, 0, 0, 0.5)";
+			
 			
 			//draw the actual menu box.
 			context.drawImage(this.box, this.boxX, this.boxY, this.boxWidth, this.boxHeight);
@@ -1107,10 +1112,10 @@ class Menu
 			}
 
 			//make 'back' hover work on all states.
-			if (this.checkMouseOverBack(mouseX, mouseY) && this.selectedItem == 'Back' 
-				|| (this.currentState != States.DEFAULT && this.checkMouseOverBack())
-				|| (this.selectedItem == 'Back') && !mouseMove)
+			if ((this.checkMouseOverBack(mouseX, mouseY) && mouseMove ) || (this.selectedItem == 'Back' && !mouseMove))
 			{
+				
+				
 				context.beginPath();
 				context.strokeStyle = "red";
 				context.rect(this.backX - (.02 * this.backX), this.backY - (.02 * this.backY), this.backDim * 1.2, this.backDim * 1.1);
@@ -1192,7 +1197,11 @@ class Menu
 			{
 				//console.log('working');
 				this.selectedItem = 'Back';
-			} 
+			}
+			else
+			{
+				this.selectedItem = 'Nothing';
+			}
 		}
 	}
 	
@@ -1418,6 +1427,7 @@ class DialogueBox
 				//draws the opaque rectangle aroudn the whole screen.
 				context.fillStyle = 'rgb(0, 0, 0, 0.5)';
 				context.fillRect(0, 0, canvas.width, canvas.height);
+				
 				this.drawBox(context);
 			}
 			else if (this.timedWindow)//if window is timed.

@@ -7,6 +7,8 @@
 		margin-left: auto;
 		margin-right: auto;
 		display: block;
+		width: 10;
+		height: 10;
 	}
 	
 	@font-face 
@@ -15,13 +17,18 @@
 		src: url('DSFONT.ttf');
 	}
 	
-
+	body 
+	{
+		overflow: hidden;
+		background-color:#1d9266;
+		
+	}
+	
 </style>
-
 
 <html>
 	<body onload="main()">
-		<canvas id="canvas" width="1300" height="700" 
+		<canvas id="canvas"
 		style="border:1px solid #000000; 
 		background-color:#1d9266;"></canvas>
 	</body>	
