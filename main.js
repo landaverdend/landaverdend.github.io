@@ -114,7 +114,6 @@ function onClick(event)
 		
 		dialogueBox.clicks++;
 		//catch scoreboard < 1
-		//let temp = scoreboard.level - 1;
 		if(scoreboard.level == 1) 
 		{
 			dialogueBox.setString('Resetting Collected Coins');
@@ -935,15 +934,14 @@ class Scoreboard
 	//updates the viewer when window is resized. make sure it matches all fields in constructor!
 	updateViewer()
 	{
-		
-		
-		
 		//this.width = window.innerWidth / 2.65;
 		this.width = dimension * 6.25;
 		let x = board.calculateTileSetX() - (this.width * 1.05);
 		
 		this.point = new Point(x, window.innerHeight * .01);
 		this.height = dimension * 6.25;
+		
+		
 	}
 	
 	drawText(context)
@@ -1011,10 +1009,11 @@ class Scoreboard
 	
 	drawLevel(context)
 	{
-		let levelWidth = (this.width - this.point.x) * .2;
-		let levelHeight = (this.height - this.point.y) * .075;
-		let levelX = this.point.x + (this.width * .425);
-		let levelY = this.point.y + (this.height * .85);
+
+		let levelWidth = (this.width - this.point.x) * .275;
+		let levelHeight = (this.height - this.point.y) * .08;
+		let levelX = this.point.x + ((this.width * .5) - (.5 * levelWidth));
+		let levelY = this.point.y + (this.height * .86);
 		
 		
 		context.drawImage(spriteTable['levelCount' + this.level], levelX, levelY, levelWidth, levelHeight);
@@ -1042,6 +1041,7 @@ class Menu
 		this.boxX, this.boxY, this.boxHeight, this.boxWidth, this.fontSize, this.itemX, this.menuIconWidth, this.menuIconHeight;
 		//fields for back button location
 		this.backX, this.backY, this.backDim;
+		this.soundX, this.soundY, this.soundDim;
 		
 		//itemYArray is useful because it keeps track of each menu items y-location so it doesn't have to constantly be recalculated. if window is resized then it is recalculated.
 		this.itemYArray = [0, 0, 0, 0, 0];
@@ -1063,14 +1063,14 @@ class Menu
 		context.drawImage(spriteTable['menuIcon'], this.iconPoint.x, this.iconPoint.y, this.menuIconWidth, this.menuIconHeight);
 		this.paintMenuHover(context);
 		
-		
+		//if menu is on.
 		if(this.viewToggle)
 		{	
 			context.save();
 			//fill in screen with opaque.
 			context.fillStyle = 'rgb(0, 0, 0, 0.5)';
 			context.fillRect(0, 0, canvas.width, canvas.height);
-			document.body.style.backgroundColor = "rgb(0, 0, 0, 0.5)";
+			document.body.style.backgroundColor = "#0e4933";
 			
 			
 			//draw the actual menu box.
@@ -1108,14 +1108,13 @@ class Menu
 					break;
 				case States.SOUND:
 					this.displaySound();
+					//this.checkMouseOverSound(mouseX, mouseY);
 					break;
 			}
 
 			//make 'back' hover work on all states.
 			if ((this.checkMouseOverBack(mouseX, mouseY) && mouseMove ) || (this.selectedItem == 'Back' && !mouseMove))
-			{
-				
-				
+			{			
 				context.beginPath();
 				context.strokeStyle = "red";
 				context.rect(this.backX - (.02 * this.backX), this.backY - (.02 * this.backY), this.backDim * 1.2, this.backDim * 1.1);
@@ -1124,7 +1123,6 @@ class Menu
 			
 			//Back is visible from every menu option. 
 			this.paintBackIcon(context);
-			
 			context.restore();	
 		}
 	}
@@ -1132,7 +1130,6 @@ class Menu
 	setDimensions()
 	{
 		//all control menu dimensions.
-
 		this.menuIconWidth = dimension * .75;
 		this.menuIconHeight = dimension * .75;
 		this.iconPoint = new Point(board.tileSet[5][5].point.x, board.tileSet[5][5].point.y * 1.01);
@@ -1141,12 +1138,14 @@ class Menu
 		this.boxX = window.innerWidth * .1;
 		this.boxY = window.innerHeight *.1;
 		this.boxHeight = window.innerHeight * .75;
-		this.boxWidth = window.innerWidth * .75;
+		this.boxWidth = window.innerWidth * .75; 
+		
 		
 		//calculating position for back button. Make sure comes after box calculations.
 		this.backX = this.boxX * 1.4;
 		this.backY = this.boxY * 1.5;
-		this.backDim = this.boxHeight / 10;
+		this.backDim = this.boxHeight * .1;
+		
 		
 		//generate all y-coordinates.
 		let temp = this.boxY + (this.boxHeight * .185);
@@ -1288,6 +1287,10 @@ class Menu
 		let buttonX = stringX + context.measureText(str1).width * 1.1;
 		let buttonY = this.boxY * 2;
 		
+		//this.soundX = buttonX;
+		//this.soundY = buttonY;
+		//this.soundDim = buttonDim;
+		
 		context.drawImage(spriteTable['soundDown'], buttonX, buttonY, buttonDim, buttonDim);
 		context.drawImage(spriteTable['soundUp'], buttonX + (buttonDim * 1.1), buttonY, buttonDim, buttonDim);
 		
@@ -1355,6 +1358,12 @@ class Menu
 	{
 		return mouseX >= menu.iconPoint.x + 10 && mouseX <= (menu.iconPoint.x + menu.menuIconWidth + 5) && mouseY >= (menu.iconPoint.y) && mouseY <= (menu.iconPoint.y * 1.02) + menu.menuIconHeight;
 	}
+	
+	checkMouseOverSound(mouseX, mouseY)
+	{
+		
+	}
+	
 }
 
 class DialogueBox
@@ -1389,6 +1398,7 @@ class DialogueBox
 		{
 			//save the current context values before altering them.
 			context.save();
+			document.body.style.backgroundColor = "#0e4933";
 			
 			if (roundEnd || roundAdvance) //end of round
 			{
@@ -1445,7 +1455,6 @@ class DialogueBox
 					this.timer.reset();
 				}
 			}
-			
 			context.restore(); //reset the context values to previous stuff.
 		}
 	}
@@ -1458,7 +1467,7 @@ class DialogueBox
 		context.fillStyle = '#4d4d55';
 		context.fillText(this.string, this.textX, this.textY);
 	}
-	
+
 	setString(string)
 	{
 		this.string = string;
@@ -1912,7 +1921,10 @@ function drawColoredLines()
 // Main game loop.
 function run(timeStamp)
 {
-	if(titleScreenOn) context.drawImage(spriteTable['titleScreen'], 0, 0, window.innerWidth, window.innerHeight);
+	if(titleScreenOn) 
+	{
+		context.drawImage(spriteTable['titleScreen'], 0, 0, window.innerWidth, window.innerHeight);
+	}
 	else 
 	{
 		//update these values.
@@ -1928,6 +1940,7 @@ function run(timeStamp)
 function update()
 {
 	setMouseType();
+	if(!menu.viewToggle && !dialogueBox.viewToggle) document.body.style.backgroundColor = "#1d9266"; //
 	
 	//clear rect at start of every function
 	context.beginPath();
@@ -1958,6 +1971,7 @@ function main()
 	
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
+	context.font = 0 +'px DSFONT';
 	
 	//initialize all game states here.
 	roundAdvance = false;
