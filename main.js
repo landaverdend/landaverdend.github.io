@@ -1011,7 +1011,7 @@ class Scoreboard
 	
 	drawLevel(context)
 	{
-		let levelWidth = (this.width - this.point.x) * .3;
+		let levelWidth = (this.width - this.point.x) * .2;
 		let levelHeight = (this.height - this.point.y) * .075;
 		let levelX = this.point.x + (this.width * .425);
 		let levelY = this.point.y + (this.height * .85);
